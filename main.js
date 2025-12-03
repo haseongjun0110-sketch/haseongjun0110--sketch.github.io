@@ -45,7 +45,7 @@ var SCENES = [
   {
     id: "start",
     type: "start",
-    text: "Shadowed Ruins: 폐허의 용병단",
+    text: "Glass Line: 기업의 심장",
     image: null,
     choices: []
   },
@@ -53,401 +53,266 @@ var SCENES = [
     id: "char_create",
     type: "charCreate",
     text:
-      "당신은 작은 용병단의 일원입니다.\n" +
-      "오늘의 임무는 정체불명의 그림자에게 파괴된 마을을 조사하는 것.\n\n" +
-      "이름을 정하고, 당신이 어떤 전투 스타일을 선호하는지 떠올려 보세요.",
+      "너는 정보전을 전문으로 하는 프리랜서 용병이다.\n" +
+      "이번 계약은, 가족의 병원비 전액을 대가로 경쟁사 B 회장을 무너뜨리는 것.\n\n" +
+      "이름을 정하고, 어느 쪽에 더 특화된 사람인지 떠올려라.\n" +
+      "민첩은 상황판단과 손놀림, 지혜는 해킹과 판짜기, 체력은 버티는 힘을 의미한다.",
     image: null,
     choices: []
   },
 
   // ──────────────────────
-  // 마을 폐허 진입
+  // 브리핑 & 첫 허브
   // ──────────────────────
   {
     id: "intro_scene",
     type: "scene",
     text:
-      "폐허가 된 마을은 이미 죽은 지 오래였습니다.\n" +
-      "부서진 집과 구부러진 가로등 사이로, 죽음의 기운이 짙게 깔려 있습니다.\n\n" +
-      "단장 아이린이 앞에서 멈춰 섭니다.\n" +
-      "“상황이 심상치 않아. 방심하지 마.”",
+      "새벽, 비 내리는 공사장 옥상.\n" +
+      "기업 A의 부사장이 담배를 비틀어 끄며 너를 돌아본다.\n\n" +
+      "“문건 하나만 가져와. B사 회장의 개인 금고에 들어있어.”\n" +
+      "“그걸로 회장을 내려앉히고, 회사도 반쯤은 같이 무너뜨릴 거다.”\n\n" +
+      "그의 눈빛이 잠시 흐릿해졌다가, 다시 차갑게 식는다.\n" +
+      "“대신, 네 가족 병원비는 우리가 끝까지 책임진다. 도와주는 게 아니라… 거래야.”",
     image: null,
     choices: [
       {
-        label: "단장에게 다음 행동을 묻는다",
-        next: "command_query",
-        requires: null
+        label: "“조건만 지키면 된다.”",
+        next: "route_hub",
+        requires: null,
+        setFlags: { style_aggressive: true }
       },
       {
-        label: "주변의 그림자 움직임을 살핀다",
-        next: "shadow_scan",
-        requires: null
+        label: "“문건이 정확히 뭔지는 말 안 해줄 거냐.”",
+        next: "route_hub",
+        requires: null,
+        setFlags: { style_empathy: true }
       }
     ]
   },
+
   {
-    id: "command_query",
+    id: "route_hub",
     type: "scene",
     text:
-      "“단장님, 이제 어떻게 하죠?”\n\n" +
-      "아이린은 짧게 숨을 고르고 말합니다.\n" +
-      "“폐허 전체를 수색한다. 발칸이 선두에서 길을 연다.\n" +
-      "카이와 엘라는 후방에서 지원.”\n\n" +
-      "발칸은 무겁게 고개를 끄덕이고, 카이는 주변을 계산하듯 살핍니다.\n" +
-      "엘라는 불안한 눈으로 당신을 봅니다.",
+      "B사 본사 야경이 아래로 펼쳐진다.\n" +
+      "손에는 대충 그려진 도면 한 장과, 불완전한 정보 몇 조각뿐.\n\n" +
+      "어디부터 파고들지 정해야 한다.",
     image: null,
     choices: [
       {
-        label: "발칸과 함께 선두에 선다",
-        next: "ruin_advance",
-        requires: null
+        label: "야간 트래픽을 타고 네트워크부터 뚫는다 (해킹)",
+        next: "hack_intro",
+        requires: {
+          flags: [
+            { key: "flag_route_hack_locked", not: true }
+          ]
+        }
       },
       {
-        label: "엘라와 카이와 함께 후방을 맡는다",
-        next: "rear_guard",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "shadow_scan",
-    type: "scene",
-    text:
-      "당신은 시야를 좁혀 오로지 그림자만을 바라봅니다.\n" +
-      "보통의 그림자는 움직이지 않지만… 이곳의 그림자는 숨을 쉬고 있습니다.\n\n" +
-      "특히 폐허 깊숙한 곳에서, 거대한 무언가가 응축되는 기분 나쁜 박동이 느껴집니다.",
-    image: null,
-    choices: [
-      {
-        label: "모두에게 경고하고 후퇴를 주장한다",
-        next: "retreat_argument",
-        requires: null
+        label: "건물 안으로 직접 잠입한다 (잠입)",
+        next: "infil_intro",
+        requires: {
+          flags: [
+            { key: "flag_route_infil_locked", not: true }
+          ]
+        }
       },
       {
-        label: "혼자 그림자의 근원을 찾아 나선다",
-        next: "deep_shadow_lure",
-        requires: null
+        label: "B사 인사팀 인간 하나를 납치해 털어본다 (납치·심문)",
+        next: "kidnap_intro",
+        requires: {
+          flags: [
+            { key: "flag_route_kidnap_locked", not: true }
+          ]
+        }
+      },
+      {
+        label: "더 이상 시도할 방법이 없다",
+        next: "bad_all_routes_failed",
+        requires: {
+          flags: [
+            { key: "flag_route_hack_locked", value: true },
+            { key: "flag_route_infil_locked", value: true },
+            { key: "flag_route_kidnap_locked", value: true }
+          ]
+        }
       }
     ]
   },
 
   // ──────────────────────
-  // 후퇴 주장 & 급습 QTE
+  // 해킹 루트
   // ──────────────────────
   {
-    id: "retreat_argument",
+    id: "hack_intro",
     type: "scene",
     text:
-      "“단장님, 지금 이대로 전진하면 죽습니다. 후퇴해야—”\n\n" +
-      "“안 돼.” 아이린이 말을 끊습니다.\n" +
-      "“우리가 물러서면, 누군가의 마지막 희망도 사라져.”\n\n" +
-      "그 말이 끝나기도 전에, 발밑의 그림자가 폭발하듯 솟구칩니다.",
+      "인근 빌딩 옥상, 노트북과 안테나를 펼친다.\n" +
+      "B사 건물에서 새어 나오는 무선 트래픽이 밤공기처럼 넘실거린다.\n\n" +
+      "어떻게 물꼬를 틀까.",
     image: null,
     choices: [
       {
-        label: "다가오는 그림자의 급습을 피한다",
-        next: "retreat_qte_entry",
+        label: "무선 AP를 통째로 가로채 인증 토큰을 훔친다",
+        next: "qte_hack_sniff",
+        requires: null
+      },
+      {
+        label: "직원 VPN을 흉내 내어 조용히 파고든다",
+        next: "qte_hack_vpn",
         requires: null
       }
     ]
   },
+
   {
-    id: "retreat_qte_entry",
+    id: "qte_hack_sniff",
     type: "qte",
-    text: "거대한 그림자의 팔이 아이린을 향해 튀어나옵니다!\n방향키로 빠르게 피해야 합니다!",
+    text:
+      "보안팀 스캐너가 주파수 대역을 훑는다.\n" +
+      "탐지선을 피해가며 패킷을 긁어야 한다.",
     image: null,
     qte: {
       qteType: "direction",
       directions: ["up", "down", "left", "right"],
       baseTimeLimit: 2500,
-      successNext: "quick_dodge",
-      failNext: "death_irene_fail"
+      targetCount: 2,
+      successNext: "hack_sniff_success",
+      failNext: "hack_sniff_fail"
     }
   },
   {
-    id: "death_irene_fail",
-    type: "death",
-    text:
-      "그림자의 팔이 아이린을 붙잡습니다.\n" +
-      "“모두… 도망쳐…!”\n\n" +
-      "단장의 목소리는 어둠 속으로 꺼져갑니다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "quick_dodge",
+    id: "hack_sniff_success",
     type: "scene",
     text:
-      "당신은 반사적으로 아이린을 밀쳐내며 몸을 굴립니다.\n" +
-      "어둠의 발톱이 허공에서 허망하게 스칩니다.\n\n" +
-      "그림자는 방향을 틀어 뒤쪽의 마법사 카이를 향해 달려듭니다.",
+      "인증 토큰 몇 개가 손에 들어온다.\n" +
+      "그 중 하나엔 회장 개인 단말로 보이는 식별자가 붙어 있다.\n\n" +
+      "이걸로 내부 메일 서버를 두드려볼 수 있겠다.",
     image: null,
     choices: [
       {
-        label: "카이를 구하기 위해 몸을 던진다",
-        next: "qte_kai_save",
-        requires: null
+        label: "내부 메일 서버에 접속해 본다",
+        next: "hack_mail_access",
+        requires: null,
+        setFlags: {
+          flag_route_hack_cleared: true,
+          flag_info_mail: true
+        }
+      },
+      {
+        label: "일단 다른 루트와 병행하기 위해 물러난다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_hack_cleared: true
+        }
       }
     ]
   },
   {
-    id: "qte_kai_save",
+    id: "hack_sniff_fail",
+    type: "scene",
+    text:
+      "경고 로그가 쌓이는 소리가 귀에 들리는 듯하다.\n" +
+      "모니터에 보안 팀의 역추적 IP가 찍힌다.\n\n" +
+      "더 이상 이 채널은 위험하다.",
+    image: null,
+    choices: [
+      {
+        label: "장비를 접고 다른 방법을 찾는다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_hack_locked: true,
+          flag_crime_exposed: true
+        }
+      }
+    ]
+  },
+
+  {
+    id: "qte_hack_vpn",
     type: "qte",
     text:
-      "카이는 얇은 마법 장막을 치지만, 그것만으로는 부족합니다.\n" +
-      "전력을 다해 달려가 그를 끌어내야 합니다!",
+      "직원들의 평소 접속 패턴을 흉내 낸다.\n" +
+      "미묘한 타이밍 차이를 맞추지 못하면 바로 튕겨나간다.",
     image: null,
     qte: {
       qteType: "mash",
       key: "z",
       baseTimeLimit: 4000,
-      baseTarget: 12,
-      successNext: "kai_sacrifice",
-      failNext: "death_kai_fail"
-    }
-  },
-  {
-    id: "death_kai_fail",
-    type: "death",
-    text:
-      "당신의 손이 닿기 전, 그림자가 카이의 몸을 완전히 뒤덮습니다.\n" +
-      "그의 비명은 몇 초 뒤, 완전한 침묵으로 바뀝니다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "kai_sacrifice",
-    type: "scene",
-    text:
-      "당신은 몸을 던져 그림자를 밀어내고 카이를 끌어당깁니다.\n" +
-      "카이는 헉헉대며 한 방향을 손가락으로 가리킵니다.\n\n" +
-      "“그림자가… 달아난다… 근원은… 저쪽이야…”",
-    image: null,
-    choices: [
-      {
-        label: "그림자를 쫓는다",
-        next: "deep_shadow_lure",
-        requires: null
-      },
-      {
-        label: "발칸과 엘라 쪽으로 합류한다",
-        next: "ruin_advance",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 후방 선택
-  // ──────────────────────
-  {
-    id: "rear_guard",
-    type: "scene",
-    text:
-      "당신은 후방에 남아 카이와 엘라를 지킵니다.\n" +
-      "전방의 긴장감과는 다른, 기묘한 정적이 흐릅니다.\n\n" +
-      "카이가 낮게 말합니다.\n" +
-      "“뒤쪽 공기도 이상하군. 앞만 위험한 게 아니야.”",
-    image: null,
-    choices: [
-      {
-        label: "발칸과 합류하러 성당 쪽으로 이동한다",
-        next: "ruin_advance",
-        requires: null
-      },
-      {
-        label: "뒤편의 더 깊은 그림자를 조사한다",
-        next: "deep_shadow_lure",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 성당 앞
-  // ──────────────────────
-  {
-    id: "ruin_advance",
-    type: "scene",
-    text:
-      "부서진 스테인드글라스 조각들이 성당 앞 바닥에 흩어져 있습니다.\n" +
-      "안쪽에서 인간도, 짐승도 아닌 울음소리가 울립니다.\n\n" +
-      "발칸이 낮게 으르렁거립니다.\n" +
-      "“들어간다. 지금이 아니면 늦는다.”\n" +
-      "엘라는 양손을 모으고 떨리는 숨을 삼킵니다.",
-    image: null,
-    choices: [
-      {
-        label: "발칸이 문을 부수고 돌입하게 둔다",
-        next: "cathedral_assault",
-        requires: null
-      },
-      {
-        label: "조용히 내부를 살피며 잠입한다",
-        next: "cathedral_stealth",
-        requires: null
-      },
-      {
-        label: "엘라에게 치유 마법을 준비하게 한다",
-        next: "protect_ella",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 엘라 보호 & QTE
-  // ──────────────────────
-  {
-    id: "protect_ella",
-    type: "scene",
-    text:
-      "엘라는 두 손을 모아 부드러운 빛을 모읍니다.\n" +
-      "“치유 장막을 준비할게요… 조금만 시간 주세요.”\n\n" +
-      "그때 성당 문이 쾅 하고 열리며, 그림자 괴물이 엘라를 향해 돌진합니다.",
-    image: null,
-    choices: [
-      {
-        label: "엘라를 향한 공격을 가로막는다",
-        next: "qte_protect_ella",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "qte_protect_ella",
-    type: "qte",
-    text:
-      "거대한 그림자 괴물이 엘라에게 달려듭니다!\n" +
-      "방향키로 몸을 던져 그 사이를 비집고 들어가야 합니다!",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["up", "down", "left", "right"],
-      baseTimeLimit: 2000,
-      successNext: "balcan_hero",
-      failNext: "death_ella_fail"
-    }
-  },
-  {
-    id: "death_ella_fail",
-    type: "death",
-    text:
-      "당신이 한 발 늦었습니다.\n" +
-      "괴물의 이빨이 엘라를 삼키고, 희미하게 빛나던 치유 마력도 함께 꺼집니다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "balcan_hero",
-    type: "scene",
-    text:
-      "당신이 괴물의 길을 막아선 사이, 발칸이 옆에서 뛰어들어 괴물의 몸통을 찍어버립니다.\n" +
-      "엘라는 가까스로 목숨을 건집니다.\n\n" +
-      "하지만 발칸의 팔에는 깊은 상처가 남습니다.\n" +
-      "“괜찮다… 이 정도는, 아직 쓸 만해.”",
-    image: null,
-    choices: [
-      {
-        label: "엘라의 상처와 상태를 먼저 확인한다",
-        next: "healing_choice",
-        requires: null
-      },
-      {
-        label: "발칸과 함께 괴물을 마무리하러 돌격한다",
-        next: "final_fight_balcan",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 대돌입 루트
-  // ──────────────────────
-  {
-    id: "cathedral_assault",
-    type: "scene",
-    text:
-      "발칸이 성당 문을 박살내고 돌입합니다.\n" +
-      "안에는 그림자에 갇힌 소녀와, 천장에 매달린 흡수체들이 보입니다.\n\n" +
-      "순식간에 수십 개의 그림자가 떨어져 발칸을 덮칩니다.",
-    image: null,
-    choices: [
-      {
-        label: "전력을 다해 발칸을 지원한다",
-        next: "qte_cathedral_assault",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "qte_cathedral_assault",
-    type: "qte",
-    text:
-      "흡수체들이 한꺼번에 쏟아져 내립니다!\n" +
-      "Z 키를 연타해 그 무게를 밀어내야 합니다!",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 5000,
       baseTarget: 15,
-      successNext: "balcan_rage",
-      failNext: "death_balcan_fail"
+      successNext: "hack_vpn_success",
+      failNext: "hack_vpn_fail"
     }
   },
   {
-    id: "death_balcan_fail",
-    type: "death",
+    id: "hack_vpn_success",
+    type: "scene",
     text:
-      "발칸은 그림자들에 깔려 더 이상 보이지 않습니다.\n" +
-      "무거운 침묵만이 성당 안에 남습니다.",
+      "로그인이 성공한다.\n" +
+      "임원 캘린더에 ‘비공개 일정’이 줄지어 있다.\n" +
+      "그 중 하나: “47F 별관 – 개인 금고 점검”.",
     image: null,
     choices: [
       {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
+        label: "별관 층 정보를 머릿속에 새기고 빠져나온다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_hack_cleared: true,
+          flag_info_schedule: true
+        }
+      },
+      {
+        label: "지금 바로 이 정보로 심층 서버에 더 들어가 본다",
+        next: "mid_access_server",
+        requires: null,
+        setFlags: {
+          flag_route_hack_cleared: true,
+          flag_info_schedule: true
+        }
       }
     ]
   },
   {
-    id: "balcan_rage",
+    id: "hack_vpn_fail",
     type: "scene",
     text:
-      "당신의 지원 덕분에 쓰러지지 않은 발칸은\n" +
-      "폭발하는 분노로 흡수체들을 하나씩 박살냅니다.\n\n" +
-      "중앙에 갇혀 있던 소녀가 떨리는 목소리로 말합니다.\n" +
-      "“제… 제발… 여기서 나가고 싶어요…”",
+      "접속이 튕기고, 화면에 `다중 로그인 시도 감지` 메시지가 뜬다.\n" +
+      "누군가 이 라인을 타고 네 쪽으로 오고 있을지도 모른다.",
     image: null,
     choices: [
       {
-        label: "소녀를 안고 즉시 후퇴한다",
-        next: "end_girl_rescue",
-        requires: null
-      },
+        label: "즉시 접속을 끊고 다른 방법을 찾는다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_hack_locked: true
+        }
+      }
+    ]
+  },
+
+  {
+    id: "hack_mail_access",
+    type: "scene",
+    text:
+      "메일함을 훑자, 회장과 A사 간부 사이의 오래된 메일 쓰레드가 드러난다.\n" +
+      "싸우고, 화해하고, 다시 싸우는 문장들.\n\n" +
+      "“당신이 내 회사를 이해해줄 줄 알았어.”\n" +
+      "“그건 당신 집착을 덮어주는 말이 아니야.”",
+    image: null,
+    choices: [
       {
-        label: "소녀를 엘라에게 맡기고 다른 생존자를 수색한다",
-        next: "search_for_irene",
-        requires: null
+        label: "로그를 저장하고 한 발 물러난다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_hack_cleared: true,
+          flag_info_mail: true
+        }
       }
     ]
   },
@@ -456,275 +321,996 @@ var SCENES = [
   // 잠입 루트
   // ──────────────────────
   {
-    id: "cathedral_stealth",
+    id: "infil_intro",
     type: "scene",
     text:
-      "당신은 숨을 죽이고 성당 안으로 미끄러져 들어갑니다.\n" +
-      "중앙에는 그림자 고리에 갇힌 소녀가 있고,\n" +
-      "주변에는 흡수체들이 일정한 리듬으로 움직이고 있습니다.",
+      "야간 출입문. 경비 둘이 졸림을 참으며 CCTV를 훑고 있다.\n" +
+      "너는 후드를 눌러쓰고 건물 그림자에 붙는다.",
     image: null,
     choices: [
       {
-        label: "위험을 감수하고 소녀에게 달려간다",
-        next: "dash_to_girl",
+        label: "경비 교대 타이밍에 맞춰 로비를 통과한다",
+        next: "qte_infil_lobby",
         requires: null
       },
       {
-        label: "흡수체들의 약점을 먼저 찾는다",
-        next: "shadow_weakness",
+        label: "외벽 청소용 작업대에 매달려 3층까지 올라간다",
+        next: "qte_infil_wall",
+        requires: null
+      }
+    ]
+  },
+
+  {
+    id: "qte_infil_lobby",
+    type: "qte",
+    text:
+      "교대 종이 울린다.\n" +
+      "카메라 사각지대를 타고 움직이지 못하면, 그대로 얼굴이 찍힌다.",
+    image: null,
+    qte: {
+      qteType: "direction",
+      directions: ["left", "right"],
+      baseTimeLimit: 2500,
+      targetCount: 2,
+      successNext: "infil_lobby_success",
+      failNext: "infil_lobby_fail"
+    }
+  },
+  {
+    id: "infil_lobby_success",
+    type: "scene",
+    text:
+      "무사히 로비를 통과한다.\n" +
+      "인적 없는 복도 끝에 ‘임원 전용층’ 표시가 걸린 엘리베이터가 보인다.",
+    image: null,
+    choices: [
+      {
+        label: "임원 전용 엘리베이터를 따라가 본다",
+        next: "infil_exec_floor",
+        requires: null,
+        setFlags: { flag_route_infil_cleared: true }
+      }
+    ]
+  },
+  {
+    id: "infil_lobby_fail",
+    type: "scene",
+    text:
+      "카메라가 딱 너를 향해 돌아온다.\n" +
+      "경보음이 울리기 시작한다. 문 앞 경비의 시선이 너와 마주친다.",
+    image: null,
+    choices: [
+      {
+        label: "몸을 돌려 어둠 속으로 튄다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_infil_locked: true,
+          flag_crime_exposed: true
+        }
+      }
+    ]
+  },
+
+  {
+    id: "qte_infil_wall",
+    type: "qte",
+    text:
+      "낡은 작업대가 삐걱거린다.\n" +
+      "떨어지지 않으려면 몸의 중심을 계속 조정해야 한다.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 4500,
+      baseTarget: 14,
+      successNext: "infil_wall_success",
+      failNext: "infil_wall_fail"
+    }
+  },
+  {
+    id: "infil_wall_success",
+    type: "scene",
+    text:
+      "3층 발코니 난간을 잡고 몸을 끌어올린다.\n" +
+      "유리창 너머로 회장실 비서석과 문이 보인다.",
+    image: null,
+    choices: [
+      {
+        label: "자물쇠를 따고 안으로 들어간다",
+        next: "infil_exec_floor",
+        requires: null,
+        setFlags: { flag_route_infil_cleared: true }
+      }
+    ]
+  },
+  {
+    id: "infil_wall_fail",
+    type: "scene",
+    text:
+      "작업대가 크게 흔들리고, 너는 비명을 삼킨 채 바닥으로 떨어진다.\n" +
+      "뼈가 부러진 느낌이지만, 일단 살아는 있다.",
+    image: null,
+    choices: [
+      {
+        label: "이대로 계속했다간 죽는다. 돌아간다",
+        next: "route_hub",
+        requires: null,
+        setFlags: { flag_route_infil_locked: true }
+      }
+    ]
+  },
+
+  {
+    id: "infil_exec_floor",
+    type: "scene",
+    text:
+      "회장실 앞 복도.\n" +
+      "장식장 속 가족 사진 중 하나에서, 네 고용주와 닮은 얼굴이 보인다.\n\n" +
+      "A사 간부의 이름이 떠오른다.",
+    image: null,
+    choices: [
+      {
+        label: "사진을 찍어두고 떠난다",
+        next: "route_hub",
+        requires: null,
+        setFlags: { flag_info_phone: true }
+      },
+      {
+        label: "서류함을 뒤져 더 많은 단서를 찾는다",
+        next: "infil_docs",
         requires: null
       }
     ]
   },
   {
-    id: "dash_to_girl",
+    id: "infil_docs",
     type: "scene",
     text:
-      "심장이 요동치지만, 당신은 발걸음을 멈추지 않습니다.\n" +
-      "소녀를 감싼 그림자 고리가 당신의 돌진을 감지하고 진동합니다.",
+      "서류함에는 ‘가사 조정 합의서’ 초안이 끼워져 있다.\n" +
+      "회장 배우자의 이름과 A사 직함이 또렷하게 적혀 있다.\n\n" +
+      "회사 싸움인 줄 알았던 일이, 누군가의 집안 싸움과 겹쳐진다.",
     image: null,
     choices: [
       {
-        label: "강제로 고리를 찢고 소녀를 구출한다",
-        next: "balcan_rage",
-        requires: null
+        label: "문건을 찍어두고 조용히 철수한다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_info_mail: true,
+          flag_route_infil_cleared: true
+        }
       },
       {
-        label: "흡수체들과의 전투를 각오한다",
-        next: "cathedral_assault",
+        label: "이 정보만으로도 서버를 더 깊이 찔러본다",
+        next: "mid_access_server",
+        requires: null,
+        setFlags: {
+          flag_info_mail: true,
+          flag_route_infil_cleared: true
+        }
+      }
+    ]
+  },
+
+  // ──────────────────────
+  // 납치·심문 루트
+  // ──────────────────────
+  {
+    id: "kidnap_intro",
+    type: "scene",
+    text:
+      "야간 버스 정류장.\n" +
+      "B사 ID 카드를 목에 건 인사팀 직원이 피곤한 얼굴로 서 있다.\n" +
+      "이런 인간이 가장 많은 걸 알고 있으면서도, 가장 약하다.",
+    image: null,
+    choices: [
+      {
+        label: "뒤에서 덮쳐 골목으로 끌고 들어간다 (강경)",
+        next: "qte_kidnap_grab",
+        requires: null,
+        setFlags: { style_aggressive: true }
+      },
+      {
+        label: "“담배 한 개비 빌릴 수 있냐”고 말을 걸며 자연스럽게 파고든다",
+        next: "qte_kidnap_soft",
+        requires: null,
+        setFlags: { style_empathy: true }
+      }
+    ]
+  },
+
+  {
+    id: "qte_kidnap_grab",
+    type: "qte",
+    text:
+      "정류장 CCTV 사각지대를 정확히 맞춰야 한다.\n" +
+      "타이밍을 놓치면 그대로 신고다.",
+    image: null,
+    qte: {
+      qteType: "direction",
+      directions: ["down", "left", "right"],
+      baseTimeLimit: 2500,
+      targetCount: 2,
+      successNext: "kidnap_hard_success",
+      failNext: "kidnap_hard_fail"
+    }
+  },
+  {
+    id: "kidnap_hard_success",
+    type: "scene",
+    text:
+      "직원의 입과 눈을 막은 채 골목으로 끌고 들어간다.\n" +
+      "몇 번의 위협 끝에 그가 토해낸 이름은… A사 간부의 이름이다.\n" +
+      "“회장님이랑… 그 사람이… 예전에….”",
+    image: null,
+    choices: [
+      {
+        label: "주소와 더러운 뒷얘기까지 캐낸다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_kidnap_cleared: true,
+          flag_info_phone: true,
+          flag_crime_exposed: true
+        }
+      }
+    ]
+  },
+  {
+    id: "kidnap_hard_fail",
+    type: "scene",
+    text:
+      "직원이 비명을 지르며 몸부림친다.\n" +
+      "근처에서 누군가 휴대폰을 꺼내는 소리가 들린다.\n" +
+      "멀리서 경광등 소리가 들려오는 것 같다.",
+    image: null,
+    choices: [
+      {
+        label: "손을 떼고 골목을 빠져나간다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_kidnap_locked: true,
+          flag_crime_exposed: true
+        }
+      }
+    ]
+  },
+
+  {
+    id: "qte_kidnap_soft",
+    type: "qte",
+    text:
+      "대화의 리듬을 맞춘다.\n" +
+      "그가 의심하기 전에 자연스럽게 회장 이야기를 꺼내야 한다.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 5000,
+      baseTarget: 13,
+      successNext: "kidnap_soft_success",
+      failNext: "kidnap_soft_fail"
+    }
+  },
+  {
+    id: "kidnap_soft_success",
+    type: "scene",
+    text:
+      "그는 한숨을 쉬며 말한다.\n" +
+      "“회장님 사생활이 좀 복잡하긴 하죠… 예전에 A사 쪽이랑…”\n" +
+      "술김에 내뱉은 말이라지만, 퍼즐 조각은 또 하나 모인다.",
+    image: null,
+    choices: [
+      {
+        label: "더 묻지 않고, 이 정도 정보만 챙겨 떠난다",
+        next: "route_hub",
+        requires: null,
+        setFlags: {
+          flag_route_kidnap_cleared: true,
+          flag_info_mail: true
+        }
+      }
+    ]
+  },
+  {
+    id: "kidnap_soft_fail",
+    type: "scene",
+    text:
+      "그는 얼굴을 찡그리며 한 발 물러선다.\n" +
+      "“죄송한데, 이런 얘기 불편하네요.”\n" +
+      "조금 뒤, 그가 휴대폰으로 누군가에게 전화를 건다.",
+    image: null,
+    choices: [
+      {
+        label: "역효과다. 더 엮이면 안 된다",
+        next: "route_hub",
+        requires: null,
+        setFlags: { flag_route_kidnap_locked: true }
+      }
+    ]
+  },
+
+  // ──────────────────────
+  // 모든 루트 실패 BAD END
+  // ──────────────────────
+  {
+    id: "bad_all_routes_failed",
+    type: "scene",
+    text:
+      "해킹은 막혔고, 잠입은 들켰고,\n" +
+      "사람 하나 붙잡아보는 것마저 역효과였다.\n\n" +
+      "손에 쥔 건 아무 것도 없고, 시간만 흘렀다.",
+    image: null,
+    choices: [
+      {
+        label: "계약은 실패했다…",
+        next: "end_bad_contract_fail",
         requires: null
       }
     ]
   },
   {
-    id: "shadow_weakness",
+    id: "end_bad_contract_fail",
     type: "scene",
     text:
-      "흡수체들의 움직임을 유심히 관찰하자,\n" +
-      "특정한 소리와 진동에 약하다는 걸 눈치챕니다.\n\n" +
-      "치유 마법과의 상성이 떠오릅니다.",
+      "기업 A는 아무 말 없이 연락을 끊었다.\n" +
+      "병원비 고지서는 계속 쌓여간다.\n\n" +
+      "이번 판에서, 넌 아무 것도 지키지 못했다.",
     image: null,
     choices: [
       {
-        label: "엘라에게 소리를 이용한 치유 마법을 쓰라 지시한다",
-        next: "protect_ella",
-        requires: null
-      },
-      {
-        label: "그 약점을 노리고 직접 돌입한다",
-        next: "cathedral_assault",
+        label: "처음으로 돌아가기",
+        next: "__restart__",
         requires: null
       }
     ]
   },
 
   // ──────────────────────
-  // 깊은 그림자 루트
+  // 중반: 서버 심층 접근 & B 용병 접촉
   // ──────────────────────
   {
-    id: "deep_shadow_lure",
+    id: "mid_access_server",
     type: "scene",
     text:
-      "당신은 그림자를 따라 낡은 건물 안으로 들어섭니다.\n" +
-      "공기는 눅눅하고, 한 곳으로 모든 어둠이 빨려 들어가는 느낌입니다.\n\n" +
-      "갑자기 천장에서 거대한 촉수가 떨어져 당신을 내려칩니다.",
+      "모아둔 조각들을 이어 붙이자,\n" +
+      "B사 중앙 서버의 정확한 주소와 포트가 떠오른다.\n\n" +
+      "이제, 회사의 심장부를 직접 찌를 차례다.",
     image: null,
     choices: [
       {
-        label: "촉수가 떨어지는 방향을 보고 피한다",
-        next: "qte_shadow_tentacle",
+        label: "임원 메일 서버를 집중적으로 훑어본다",
+        next: "qte_mid_mail_breach",
+        requires: null
+      },
+      {
+        label: "임원용 메신저 로그를 파고든다",
+        next: "qte_mid_chat_breach",
         requires: null
       }
     ]
   },
+
   {
-    id: "qte_shadow_tentacle",
+    id: "qte_mid_mail_breach",
     type: "qte",
     text:
-      "촉수가 번개처럼 떨어집니다!\n" +
-      "방향키로 한 순간의 틈을 찾아 몸을 빼야 합니다!",
+      "패킷 사이로 누군가의 눈길 같은 게 느껴진다.\n" +
+      "누군가 너를 역추적하고 있다.",
     image: null,
     qte: {
       qteType: "direction",
       directions: ["up", "down", "left", "right"],
       baseTimeLimit: 3000,
-      successNext: "escape_success",
-      failNext: "death_trap"
+      targetCount: 2,
+      successNext: "mid_mail_success",
+      failNext: "mid_mail_fail"
     }
   },
   {
-    id: "death_trap",
+    id: "mid_mail_success",
+    type: "scene",
+    text:
+      "메일 한 묶음이 열리며,\n" +
+      "회장과 A사 간부 사이의 오래된 메일 쓰레드가 드러난다.\n" +
+      "비즈니스 보고라기보다, 거의 부부싸움에 가까운 감정의 폭발이다.",
+    image: null,
+    choices: [
+      {
+        label: "둘의 감정사를 대략 짐작하며 로그를 저장한다",
+        next: "mid_b_merc_contact",
+        requires: null,
+        setFlags: { flag_info_mail: true }
+      }
+    ]
+  },
+  {
+    id: "mid_mail_fail",
+    type: "scene",
+    text:
+      "화면이 검게 깜빡이고, 시스템 메시지가 뜬다.\n" +
+      "`침입자 탐지 – 연결 종료`\n\n" +
+      "누군가 네 IP를 따라오고 있을지도 모른다.",
+    image: null,
+    choices: [
+      {
+        label: "케이블을 뽑고 숨을 죽인다",
+        next: "mid_b_merc_contact",
+        requires: null,
+        setFlags: { flag_crime_exposed: true }
+      }
+    ]
+  },
+
+  {
+    id: "qte_mid_chat_breach",
+    type: "qte",
+    text:
+      "실시간으로 오가는 채팅창 사이를 헤집는다.\n" +
+      "잘못 건드리면, 네 패킷이 대화창에 그대로 찍힌다.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 4500,
+      baseTarget: 15,
+      successNext: "mid_chat_success",
+      failNext: "mid_chat_fail"
+    }
+  },
+  {
+    id: "mid_chat_success",
+    type: "scene",
+    text:
+      "‘내가 그런 식으로 회사 운영하라고 했어?’\n" +
+      "‘우리는 직원들 삶도 책임져야 한다고 했잖아.’\n\n" +
+      "A사 간부 ID와 회장 ID가 서로를 비난하는 대화가 보인다.\n" +
+      "비즈니스가 아니라, 오래된 관계의 균열처럼 보인다.",
+    image: null,
+    choices: [
+      {
+        label: "로그를 캡쳐하고 연결을 끊는다",
+        next: "mid_b_merc_contact",
+        requires: null,
+        setFlags: { flag_info_mail: true }
+      }
+    ]
+  },
+  {
+    id: "mid_chat_fail",
+    type: "scene",
+    text:
+      "채팅창에 정체불명의 문자열이 찍힌다.\n" +
+      "곧바로 ‘누구야?’라는 메시지가 따라온다.\n" +
+      "그 직후, 연결이 강제로 끊긴다.",
+    image: null,
+    choices: [
+      {
+        label: "망했다. 이건 들켰다",
+        next: "mid_b_merc_contact",
+        requires: null,
+        setFlags: { flag_crime_exposed: true }
+      }
+    ]
+  },
+
+  {
+    id: "mid_b_merc_contact",
+    type: "scene",
+    text:
+      "이어폰에서 낯선 목소리가 들린다.\n" +
+      "“너, 여기서 뭐 하는지 알아.”\n" +
+      "“이 라인을 계속 쓰면, 네 가족 사진부터 털릴 거다.”\n\n" +
+      "목소리는 정확히 네가 뭘 하고 있었는지 읊는다. B사 용병이다.",
+    image: null,
+    choices: [
+      {
+        label: "“너희 회장이 뭘 숨기는지 알게 되면 말이 달라질 거다.”",
+        next: "mid_b_merc_argue",
+        requires: null
+      },
+      {
+        label: "통신을 끊고 현장 쪽 루트에 집중한다",
+        next: "pre_final_infil",
+        requires: null
+      }
+    ]
+  },
+
+  {
+    id: "mid_b_merc_argue",
+    type: "scene",
+    text:
+      "“숨기는 건 어느 쪽인데?”\n" +
+      "“네 고용주, A사 간부. 그 인간이 우리 회장의 배우자였어.”\n" +
+      "“넌 지금, 그 인간의 질투와 복수심을 대신 처리하는 도구야.”\n\n" +
+      "목소리는 차갑지만, 분노보다 피로가 묻어 있다.",
+    image: null,
+    choices: [
+      {
+        label: "“그래도 내 가족은 지켜야 해.”",
+        next: "pre_final_infil",
+        requires: null,
+        setFlags: { style_aggressive: true }
+      },
+      {
+        label: "“…그래서 너희는 방어만 한다는 거냐.”",
+        next: "pre_final_infil",
+        requires: null,
+        setFlags: { style_empathy: true }
+      }
+    ]
+  },
+
+  // ──────────────────────
+  // 최종 침입
+  // ──────────────────────
+  {
+    id: "pre_final_infil",
+    type: "scene",
+    text:
+      "모아진 단서들은 하나의 좌표를 가리킨다.\n" +
+      "B사 별관 47층, 개인 금고.\n\n" +
+      "거기에 회장의 치부와, A사 간부의 사적인 칼날이 함께 잠들어 있다.",
+    image: null,
+    choices: [
+      {
+        label: "엘리베이터를 해킹해 47층까지 직행한다",
+        next: "qte_final_elevator",
+        requires: null
+      },
+      {
+        label: "계단을 이용해 경비를 피해 올라간다",
+        next: "qte_final_stairs",
+        requires: null
+      }
+    ]
+  },
+
+  {
+    id: "qte_final_elevator",
+    type: "qte",
+    text:
+      "엘리베이터 패널이 빨갛게 깜빡인다.\n" +
+      "접근권한을 위조하지 못하면, 1층 보안실로 직행이다.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 4000,
+      baseTarget: 15,
+      successNext: "final_elevator_success",
+      failNext: "final_elevator_fail"
+    }
+  },
+  {
+    id: "final_elevator_success",
+    type: "scene",
+    text:
+      "엘리베이터 문이 조용히 닫히고,\n" +
+      "47층 숫자가 불이 들어온다.\n" +
+      "이 위에, 네가 찾던 모든 답이 있다.",
+    image: null,
+    choices: [
+      {
+        label: "금고층 복도로 나선다",
+        next: "final_b_merc_confront",
+        requires: null
+      }
+    ]
+  },
+  {
+    id: "final_elevator_fail",
+    type: "scene",
+    text:
+      "엘리베이터가 1층 보안실로 내려가기 시작한다.\n" +
+      "이대로면 구속이다.",
+    image: null,
+    choices: [
+      {
+        label: "비상 정지 레버를 강제로 당겨 버린다",
+        next: "final_elevator_brake",
+        requires: null
+      }
+    ]
+  },
+  {
+    id: "final_elevator_brake",
+    type: "scene",
+    text:
+      "경보음과 함께 엘리베이터가 급정지한다.\n" +
+      "그 사이를 틈타, 너는 위층으로 향하는 계단을 향해 달린다.",
+    image: null,
+    choices: [
+      {
+        label: "계단을 통해 47층까지 올라간다",
+        next: "qte_final_stairs",
+        requires: null,
+        setFlags: { flag_crime_exposed: true }
+      }
+    ]
+  },
+
+  {
+    id: "qte_final_stairs",
+    type: "qte",
+    text:
+      "계단참마다 보안 카메라와 센서가 있다.\n" +
+      "숨이 차오르는 와중에도, 정확한 타이밍을 놓치면 안 된다.",
+    image: null,
+    qte: {
+      qteType: "direction",
+      directions: ["up", "left", "right"],
+      baseTimeLimit: 4500,
+      targetCount: 3,
+      successNext: "final_stairs_success",
+      failNext: "final_stairs_fail"
+    }
+  },
+  {
+    id: "final_stairs_success",
+    type: "scene",
+    text:
+      "숨이 목구멍을 태우는 느낌과 함께,\n" +
+      "드디어 47층 출입문 앞에 선다.",
+    image: null,
+    choices: [
+      {
+        label: "문을 열고 복도 안으로 들어간다",
+        next: "final_b_merc_confront",
+        requires: null
+      }
+    ]
+  },
+  {
+    id: "final_stairs_fail",
+    type: "scene",
+    text:
+      "한 번의 실수.\n" +
+      "센서가 붉게 빛나고, 경보음이 울린다.\n" +
+      "더 이상 숨을 곳이 없다.",
+    image: null,
+    choices: [
+      {
+        label: "마지막 힘을 짜내어 문을 부수고 안으로 돌입한다",
+        next: "final_b_merc_confront",
+        requires: null,
+        setFlags: { flag_crime_exposed: true }
+      }
+    ]
+  },
+
+  // ──────────────────────
+  // 최종 대치 + 3단 QTE
+  // ──────────────────────
+  {
+    id: "final_b_merc_confront",
+    type: "scene",
+    text:
+      "금고실 앞 복도.\n" +
+      "B사 용병이 벽에 기대 서 있다.\n\n" +
+      "“여기까지 왔으면, 이젠 말로는 안 되겠지.”\n" +
+      "“하지만 기억해. 네가 지키려는 가족 수랑, 내가 지키려는 가족 수가 얼마나 다른지.”",
+    image: null,
+    choices: [
+      {
+        label: "“그냥 비켜. 이건 나랑 네 회장 문제야.”",
+        next: "qte_final_round1",
+        requires: null,
+        setFlags: { style_aggressive: true }
+      },
+      {
+        label: "“그래도, 여기서 물러날 수는 없어.”",
+        next: "qte_final_round1",
+        requires: null,
+        setFlags: { style_empathy: true }
+      }
+    ]
+  },
+
+  {
+    id: "qte_final_round1",
+    type: "qte",
+    text:
+      "그는 곧장 달려들지 않는다.\n" +
+      "비살상용 곤봉을 빙글 돌리며, 너를 벽 쪽으로 몰아붙인다.",
+    image: null,
+    qte: {
+      qteType: "direction",
+      directions: ["left", "right", "up", "down"],
+      baseTimeLimit: 3000,
+      targetCount: 2,
+      successNext: "final_round1_success",
+      failNext: null,
+      deathNext: "final_death"
+    }
+  },
+  {
+    id: "final_round1_success",
+    type: "scene",
+    text:
+      "몇 번의 휘두름을 간신히 피하자,\n" +
+      "그의 호흡도 조금 거칠어진다.\n" +
+      "“네가 이렇게까지 할 줄은 몰랐네.”",
+    image: null,
+    choices: [
+      {
+        label: "숨 돌릴 틈 없이 붙는다",
+        next: "qte_final_round2",
+        requires: null
+      }
+    ]
+  },
+
+  {
+    id: "qte_final_round2",
+    type: "qte",
+    text:
+      "이번엔 정면으로 몸을 던져온다.\n" +
+      "팔과 팔이 엉키고, 바닥에 굴러 떨어진다.\n" +
+      "누가 위로 올라탈지가 모든 걸 가른다.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 4500,
+      baseTarget: 16,
+      successNext: "final_round2_success",
+      failNext: null,
+      deathNext: "final_death"
+    }
+  },
+  {
+    id: "final_round2_success",
+    type: "scene",
+    text:
+      "간신히 그의 팔을 비트는 데 성공한다.\n" +
+      "그는 이를 악물고 말한다.\n\n" +
+      "“네 고용주, A사 간부. 그 인간이 내 상관의 배우자였어.”\n" +
+      "“네가 지금 부수려는 건… 그냥 회장이 아니라, 한 집안 전체야.”",
+    image: null,
+    choices: [
+      {
+        label: "“나도 집안 하나는 지켜야 해.”",
+        next: "qte_final_round3",
+        requires: null,
+        setFlags: { style_aggressive: true }
+      },
+      {
+        label: "“…그래서 넌 죽이지 않으려 했던 거냐.”",
+        next: "qte_final_round3",
+        requires: null,
+        setFlags: { style_empathy: true }
+      }
+    ]
+  },
+
+  {
+    id: "qte_final_round3",
+    type: "qte",
+    text:
+      "마지막 일격의 순간.\n" +
+      "너의 주먹이 먼저 닿을지,\n" +
+      "그의 전기 충격봉이 먼저 닿을지.",
+    image: null,
+    qte: {
+      qteType: "mash",
+      key: "z",
+      baseTimeLimit: 3500,
+      baseTarget: 14,
+      successNext: "final_round3_success",
+      failNext: null,
+      deathNext: "final_death"
+    }
+  },
+  {
+    id: "final_round3_success",
+    type: "scene",
+    text:
+      "그의 몸에서 힘이 빠져나간다.\n" +
+      "네가 원한다면, 지금 여기서 끝낼 수 있다.\n" +
+      "아니면, 그냥 기절만 시킬 수도 있다.",
+    image: null,
+    choices: [
+      {
+        label: "목을 꺾어 확실히 끝낸다",
+        next: "final_choice_after_kill",
+        requires: null,
+        setFlags: { style_aggressive: true }
+      },
+      {
+        label: "호흡만 남겨두고 기절만 시킨다",
+        next: "final_choice_after_knockout",
+        requires: null,
+        setFlags: { style_empathy: true }
+      }
+    ]
+  },
+
+  {
+  id: "wounded_continue",
+  type: "scene",
+  text:
+    "잠깐의 빈틈 때문에 치명상은 피했지만,\n" +
+    "몸 곳곳이 멍들고 저려온다.",
+  image: null,
+  choices: [
+    {
+      label: "이를 악물고 다시 맞선다",
+      next: "final_b_merc_confront",
+      requires: null
+    }
+  ]
+},
+
+
+  {
+    id: "final_death",
     type: "death",
     text:
-      "촉수가 당신의 몸을 감싸고, 깊은 그림자 속으로 끌고 들어갑니다.\n" +
-      "빛은 점점 멀어져 갑니다.",
+      "한순간의 빈틈.\n" +
+      "전기 충격이 척추를 타고 올라온다.\n" +
+      "팔과 다리가 동시에 굳어버린다.\n\n" +
+      "시야가 검게 말려들어가기 직전,\n" +
+      "떠오르는 얼굴이 둘 있다.\n" +
+      "“미안… 내 딸… 자기…”",
+    image: null,
+    choices: []
+  },
+
+  // ──────────────────────
+  // 엔딩 분기용 체크 씬
+  // ──────────────────────
+  {
+    id: "final_choice_after_kill",
+    type: "scene",
+    text:
+      "그의 목에서 짧은 소리가 나고,\n" +
+      "몸이 축 늘어진다.\n" +
+      "복도에는 너와 시체, 그리고 닫힌 금고 문뿐이다.",
     image: null,
     choices: [
       {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
+        label: "문건을 챙겨 A사에게 넘긴다",
+        next: "ending_A_or_D_check",
+        requires: null,
+        setFlags: { flag_chose_document: true }
       }
     ]
   },
+
   {
-    id: "escape_success",
+    id: "final_choice_after_knockout",
     type: "scene",
     text:
-      "당신은 가까스로 촉수를 피해 구르지만, 바닥이 무너져 지하로 떨어집니다.\n\n" +
-      "지하실 중앙에는 검은 심장처럼 뛰는 ‘그림자 촉매’가 놓여 있습니다.",
+      "그는 깊은 숨을 몰아쉬며 쓰러져 있다.\n" +
+      "생사는 붙어 있지만, 당분간 일어날 수는 없다.\n" +
+      "금고는 여전히 네 손이 닿을 곳에 있다.",
     image: null,
     choices: [
       {
-        label: "망설이지 않고 촉매를 파괴한다",
-        next: "end_catalyst_destruction",
-        requires: null
+        label: "문건을 확보해 두 기업의 내막을 세상에 폭로한다",
+        next: "ending_B_or_D_check",
+        requires: null,
+        setFlags: {
+          flag_chose_whistle: true,
+          style_empathy: true
+        }
       },
       {
-        label: "촉매를 조사해 정체를 파악한다",
-        next: "catalyst_analysis",
-        requires: null
+        label: "아무 것도 가져가지 않고, 그냥 떠난다",
+        next: "ending_C_or_D_check",
+        requires: null,
+        setFlags: {
+          flag_chose_nothing: true,
+          style_empathy: true
+        }
       }
     ]
   },
+
   {
-    id: "catalyst_analysis",
+    id: "ending_A_or_D_check",
     type: "scene",
     text:
-      "촉매에 손을 얹자, 차가운 맥동이 손끝으로 전해집니다.\n" +
-      "이것은 그림자와 인간을 연결하는 고리.\n" +
-      "부수면, 그 자리를 누군가의 생명으로 메워야 합니다.",
+      "문건을 손에 쥔 채, 너는 건물 밖으로 향한다.\n" +
+      "어딘가에서 싸이렌 소리가 들려오는 것 같다.",
     image: null,
     choices: [
       {
-        label: "일단 동료들에게 돌아가 이 정보를 알린다",
-        next: "return_with_info",
-        requires: null
+        label: "걸음을 재촉한다",
+        next: "ending_A",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", not: true }
+          ]
+        }
       },
       {
-        label: "당신이 그 자리를 대신 메우기로 결심한다",
-        next: "end_catalyst_sacrifice",
-        requires: null
+        label: "뒤를 돌아본다",
+        next: "ending_D",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", value: true }
+          ]
+        }
       }
     ]
   },
+
   {
-    id: "return_with_info",
+    id: "ending_B_or_D_check",
     type: "scene",
     text:
-      "당신은 촉매를 그대로 둔 채, 동료들에게 돌아가기로 합니다.\n" +
-      "하지만 위에서는 이미 전투가 한창입니다.",
+      "문건 내용은 회장의 치정과,\n" +
+      "그걸 칼날처럼 이용하려 했던 A사 간부의 사적인 메모들로 가득하다.",
     image: null,
     choices: [
       {
-        label: "발칸과 엘라 쪽으로 간다",
-        next: "ruin_advance",
-        requires: null
+        label: "내부고발자로서 이 모든 걸 제출한다",
+        next: "ending_B",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", not: true }
+          ]
+        }
       },
       {
-        label: "아이린의 행방을 먼저 찾는다",
-        next: "search_for_irene",
-        requires: null
+        label: "이미 너무 많은 눈에 띄었다",
+        next: "ending_D",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", value: true }
+          ]
+        }
+      }
+    ]
+  },
+
+  {
+    id: "ending_C_or_D_check",
+    type: "scene",
+    text:
+      "너는 금고를 닫고, 아무 것도 가져가지 않는다.\n" +
+      "복수도, 정의도, 어느 쪽에도 서지 않은 채.",
+    image: null,
+    choices: [
+      {
+        label: "조용히 건물을 빠져나간다",
+        next: "ending_C",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", not: true }
+          ]
+        }
+      },
+      {
+        label: "그러기엔 이미 너무 늦었다",
+        next: "ending_D",
+        requires: {
+          flags: [
+            { key: "flag_crime_exposed", value: true }
+          ]
+        }
       }
     ]
   },
 
   // ──────────────────────
-  // 발칸과 마지막 전투
+  // 엔딩 A/B/C/D
   // ──────────────────────
   {
-    id: "final_fight_balcan",
+    id: "ending_A",
     type: "scene",
     text:
-      "당신과 발칸은 괴물의 핵을 향해 돌격합니다.\n" +
-      "괴물의 울부짖음이 건물 전체를 뒤흔듭니다.",
-    image: null,
-    choices: [
-      {
-        label: "정면 돌파로 핵을 파괴한다",
-        next: "crush_core",
-        requires: null
-      },
-      {
-        label: "발칸이 기회를 잡을 수 있도록 주의를 끈다",
-        next: "distraction_strike",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "crush_core",
-    type: "scene",
-    text:
-      "당신은 괴물의 공격을 정면으로 버텨내고,\n" +
-      "발칸이 핵을 산산이 부수도록 길을 엽니다.\n\n" +
-      "어둠의 울음이 끊기고, 성당은 무겁게 숨을 내쉽니다.\n\n" +
-      "엔딩 C: 힘으로 얻은 승리",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "distraction_strike",
-    type: "scene",
-    text:
-      "당신은 괴물의 시선을 끌기 위해 몸을 던집니다.\n" +
-      "그 틈을 타 발칸이 핵을 강타합니다.\n\n" +
-      "괴물은 쓰러지지만, 당신은 치명상을 입습니다.",
-    image: null,
-    choices: [
-      {
-        label: "엘라에게 치료를 부탁한다",
-        next: "healing_choice",
-        requires: null
-      },
-      {
-        label: "최후의 힘을 짜내어 폐허를 수색한다",
-        next: "search_for_irene",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 아이린 수색 & 촉매
-  // ──────────────────────
-  {
-    id: "search_for_irene",
-    type: "scene",
-    text:
-      "폐허의 중심부에서 아이린이 서 있는 것이 보입니다.\n" +
-      "그녀의 뒤에는, 당신이 봤던 것과 같은 촉매가 뛰고 있습니다.\n" +
-      "아이린의 몸은 이미 반쯤 그림자에 잠식돼 있습니다.\n\n" +
-      "“촉매를… 파괴해… 부탁이야…”",
-    image: null,
-    choices: [
-      {
-        label: "엘라의 힘을 빌려 아이린을 치료한다",
-        next: "save_irene",
-        requires: null
-      },
-      {
-        label: "아이린의 뜻대로 촉매를 파괴한다",
-        next: "end_catalyst_destruction",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "save_irene",
-    type: "scene",
-    text:
-      "엘라의 치유 마법이 아이린의 몸을 감싸며\n" +
-      "그림자의 잠식을 억누릅니다.\n\n" +
-      "아이린은 겨우 숨을 고르며 말합니다.\n" +
-      "“살아남았군… 하지만, 이 상처는 오래 갈 거야.”\n\n" +
-      "엔딩 B: 일시적 평화",
+      "문건이 A사 회의실 테이블 위에 놓인다.\n" +
+      "그 뒤로, B사 주가 폭락과 구조조정 뉴스가 연달아 쏟아진다.\n\n" +
+      "해고된 수천 명의 얼굴이 스쳐지나간다.\n" +
+      "네 가족의 병원비는 계속 지급된다.\n\n" +
+      "“내 가족은 살았지만… 몇 천 가족은 무너졌군.”",
     image: null,
     choices: [
       {
@@ -735,35 +1321,17 @@ var SCENES = [
     ]
   },
 
-  // ──────────────────────
-  // 촉매 엔딩들
-  // ──────────────────────
   {
-    id: "end_catalyst_sacrifice",
+    id: "ending_B",
     type: "scene",
     text:
-      "당신은 촉매에 손을 얹고, 그 안으로 몸을 던지듯 깊이 파고듭니다.\n" +
-      "차가운 맥동이 당신의 심장을 삼킵니다.\n\n" +
-      "재앙은 멈추었지만, 당신이라는 존재도 함께 사라집니다.\n\n" +
-      "엔딩 A: 고독한 구원",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "end_catalyst_destruction",
-    type: "scene",
-    text:
-      "당신은 촉매를 산산이 부숩니다.\n" +
-      "어둠의 에너지가 폭발하듯 사라지고, 동료들이 당신을 끌어냅니다.\n\n" +
-      "그러나 촉매의 파편은 어딘가로 흩어졌습니다.\n" +
-      "위기는 넘겼지만, 뿌리는 완전히 사라지지 않았습니다.\n\n" +
-      "엔딩 B: 일시적 평화",
+      "너와 B사 용병의 증언, 그리고 문건 일부가\n" +
+      "검찰 조사실 책상 위에 놓인다.\n\n" +
+      "A사 간부는 직무유기와 보복성 업무 남용으로 구속되고,\n" +
+      "B사는 구조조정 없이 재편을 약속한다.\n" +
+      "정부는 퇴직·의료 지원 프로그램을 내놓는다.\n\n" +
+      "용병은 마지막으로 말한다.\n" +
+      "“넌, 우리도 네 가족도 지켰다.”",
     image: null,
     choices: [
       {
@@ -774,16 +1342,15 @@ var SCENES = [
     ]
   },
 
-  // ──────────────────────
-  // 치유 & 소녀 엔딩
-  // ──────────────────────
   {
-    id: "healing_choice",
+    id: "ending_C",
     type: "scene",
     text:
-      "엘라의 치유 마법이 상처를 봉합합니다.\n" +
-      "모두가 지쳐 있지만, 최소한 오늘의 재앙은 멈췄습니다.\n\n" +
-      "엔딩 B: 일시적 평화",
+      "너는 아무에게도 문건을 넘기지 않는다.\n" +
+      "두 기업은 각자의 방식대로 버틴다.\n\n" +
+      "병원비 고지서는 여전히 무겁게 쌓여가고,\n" +
+      "네 가족은 벼랑 끝에 서 있다.\n\n" +
+      "“…이 싸움에, 내 가족을 더 이상 태울 순 없었어.”",
     image: null,
     choices: [
       {
@@ -793,14 +1360,17 @@ var SCENES = [
       }
     ]
   },
+
   {
-    id: "end_girl_rescue",
+    id: "ending_D",
     type: "scene",
     text:
-      "당신은 소녀를 품에 안고 폐허를 빠져나옵니다.\n" +
-      "뒤돌아본 마을은 여전히 잿더미지만,\n" +
-      "소녀의 눈동자 속에는 아직 희망의 빛이 남아 있습니다.\n\n" +
-      "엔딩 D: 새로운 시작",
+      "건물 밖, 경찰차와 순찰차가 원을 그린다.\n" +
+      "싸이렌 불빛이 너의 그림자를 길게 끌어낸다.\n\n" +
+      "너는 뒷골목으로 몸을 던진다.\n\n" +
+      "‘어디까지 도망쳐야 할까?\n" +
+      "  어쩌다가 이렇게 된 걸까?\n" +
+      "  가족들에게… 돌아갈 순 있을까?’",
     image: null,
     choices: [
       {
@@ -812,25 +1382,20 @@ var SCENES = [
   },
 
   // ──────────────────────
-  // 공통 데스 처리용
+  // 공통 데스
   // ──────────────────────
   {
     id: "death_generic",
     type: "death",
     text:
-      "너의 의식은 어둠 속으로 가라앉았습니다.\n\n" +
+      "너의 의식은 어둠 속으로 가라앉았다.\n\n" +
       "너무 많은 상처를 입었고,\n" +
-      "폐허를 뒤덮은 그림자가 마지막 숨결까지 삼켜버립니다.",
+      "이번 판에서, 네 가족에게 돌아갈 길은 끊겼다.",
     image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
+    choices: []
   }
 ];
+
 
 function findScene(id) {
   for (var i = 0; i < SCENES.length; i++) {
