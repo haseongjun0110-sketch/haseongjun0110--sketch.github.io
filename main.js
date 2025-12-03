@@ -68,7 +68,7 @@ var SCENES = [
 {
   id: "char_create",
   type: "charCreate",
-  text: "",
+  text: "당신의 정보를 입력해주세요. 각 스탯은 게임의 난이도와 선택지에 영향을 미칩니다.",
   image: null,
   choices: []
 },
