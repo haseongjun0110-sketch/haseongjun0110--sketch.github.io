@@ -64,7 +64,7 @@ var SCENES = [
   // 마을 폐허 진입
   // ──────────────────────
   {
-    id: "village_ruin",
+    id: "intro_scene",
     type: "scene",
     text:
       "폐허가 된 마을은 이미 죽은 지 오래였습니다.\n" +
