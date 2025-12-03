@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>그림자 숲의 모험</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="font-normal">
+  <!-- 시작 화면 오버레이 -->
+  <div id="start-screen">
+    <div id="start-title">그림자 숲의 모험</div>
+    <div id="start-hint">화면을 클릭하여 시작</div>
+  </div>
+
+  <!-- 상단 공통 헤더 -->
+  <header id="ui-header">
+    <div id="player-status"></div>
+    <div id="system-buttons">
+      <button id="btn-settings">설정</button>
+    </div>
+  </header>
+
+  <!-- 메인 씬 컨테이너 -->
+  <main id="game-container">
+    <div id="scene-image"></div>
+    <div id="scene-text"></div>
+    <div id="scene-choices"></div>
+  </main>
+
+  <!-- 방향형 QTE 오버레이 -->
+  <div id="qte-direction-overlay" class="qte-overlay hidden">
+    <div class="qte-modal">
+      <div class="qte-text"></div>
+      <div class="qte-timer">
+        <div class="qte-timer-fill"></div>
+      </div>
+      <div id="qte-direction-grid">
+        <div></div>
+        <button data-dir="up" class="dir-btn">↑</button>
+        <div></div>
+        <button data-dir="left" class="dir-btn">←</button>
+        <div></div>
+        <button data-dir="right" class="dir-btn">→</button>
+        <div></div>
+        <button data-dir="down" class="dir-btn">↓</button>
+        <div></div>
+      </div>
+      <div id="qte-direction-hint">방향키 또는 버튼을 눌러라</div>
+    </div>
+  </div>
+
+  <!-- 연타형 QTE 오버레이 -->
+  <div id="qte-mash-overlay" class="qte-overlay hidden">
+    <div class="qte-modal">
+      <div class="qte-text"></div>
+      <div class="qte-timer">
+        <div class="qte-timer-fill"></div>
+      </div>
+      <div id="qte-mash-info">
+        <span>목표: <span id="qte-mash-target">0</span>회</span>
+      </div>
+      <button id="qte-mash-button">Z</button>
+      <div id="qte-mash-count">0</div>
+    </div>
+  </div>
+
+  <!-- 설정 오버레이 -->
+  <div id="settings-overlay" class="hidden">
+    <div id="settings-modal">
+      <h2>설정</h2>
+
+      <section class="settings-section">
+        <h3>게임</h3>
+        <div class="settings-buttons">
+          <button id="btn-setting-save">저장</button>
+          <button id="btn-setting-load">불러오기</button>
+          <button id="btn-setting-restart">재시작</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>텍스트</h3>
+        <label>텍스트 속도
+          <select id="setting-text-speed">
+            <option value="slow">느림</option>
+            <option value="normal">보통</option>
+            <option value="fast">빠름</option>
+          </select>
+        </label>
+        <label>글자 크기
+          <select id="setting-font-size">
+            <option value="small">작게</option>
+            <option value="normal">보통</option>
+            <option value="large">크게</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
+        <h3>기타</h3>
+        <label><input type="checkbox" id="setting-mute"> 소리 끄기</label>
+        <label>QTE 난이도
+          <select id="setting-qte-difficulty">
+            <option value="easy">쉬움</option>
+            <option value="normal">보통</option>
+            <option value="hard">어려움</option>
+          </select>
+        </label>
+      </section>
+
+      <div id="settings-buttons">
+        <button id="btn-settings-close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
