@@ -42,261 +42,594 @@ var state = {
 };
 
 var SCENES = [
-  {
-    id: "start",
-    type: "start",
-    text: "그림자 숲의 모험",
-    image: null,
-    choices: []
-  },
-  {
-    id: "char_create",
-    type: "charCreate",
-    text: "어둠이 내려앉은 숲 입구에서, 당신은 자신이 누구인지 떠올려야 합니다.\n이름을 정하고, 당신의 능력치를 선택하세요.\n\n• 민첩(AGI): QTE의 시간과 난이도에 영향을 줍니다.\n• 지혜(WIS): 특수한 선택지를 열어줍니다.\n• 체력(VIT): 실패를 견딜 수 있는 횟수입니다.",
-    image: null,
-    choices: []
-  },
-  {
-    id: "intro_scene",
-    type: "scene",
-    text: "당신은 어두운 숲 입구에 서 있습니다. 짙은 안개가 나무 사이를 맴돌고, 어디선가 늑대의 울음소리가 들려옵니다.\n\n앞으로 나아가면 더 깊은 숲으로 들어가게 됩니다. 어떤 위험이 기다리고 있을지 모릅니다.",
-    image: null,
-    choices: [
-      {
-        label: "조심스럽게 숲으로 들어간다",
-        next: "forest_path",
-        requires: null
-      },
-      {
-        label: "주변을 먼저 살핀다 (지혜 4 필요)",
-        next: "forest_path_wise",
-        requires: { wis: 4 }
-      }
-    ]
-  },
-  {
-    id: "forest_path",
-    type: "scene",
-    text: "당신은 조심스럽게 발걸음을 옮깁니다. 바스락거리는 낙엽 소리가 유난히 크게 들립니다.\n\n갑자기, 덤불 속에서 무언가가 튀어나옵니다!",
-    image: null,
-    choices: [
-      {
-        label: "계속 전진한다",
-        next: "wolf_attack",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "forest_path_wise",
-    type: "scene",
-    text: "당신의 날카로운 눈이 주변의 흔적을 포착합니다. 땅에 찍힌 발자국은 분명 늑대의 것입니다.\n\n\"조심해야겠군... 이 근처에 늑대가 있어.\"\n\n덕분에 마음의 준비를 할 수 있었습니다.",
-    image: null,
-    choices: [
-      {
-        label: "준비된 마음으로 전진한다",
-        next: "wolf_attack",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "wolf_attack",
-    type: "qte",
-    text: "그림자 늑대가 덤벼든다! 빠르게 피해야 한다!",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["up", "left", "right", "down"],
-      baseTimeLimit: 2000,
-      // 선택: targetCount로 필요한 성공 횟수 지정 (기본 1)
-      // targetCount: 2,
-      successNext: "wolf_escaped",
-      failNext: "wolf_hit"
-      // deathNext / woundedNext도 필요하면 여기서 지정 가능
-    }
-  },
-  {
-    id: "wolf_escaped",
-    type: "scene",
-    text: "당신은 재빠르게 몸을 피했습니다! 늑대가 허공을 가르며 지나갑니다.\n\n늑대는 으르렁거리며 다시 자세를 잡습니다. 하지만 이번에는 당신이 먼저 움직일 기회가 있습니다.",
-    image: null,
-    choices: [
-      {
-        label: "도망친다",
-        next: "escape_run",
-        requires: null
-      },
-      {
-        label: "나뭇가지를 집어든다",
-        next: "grab_branch",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "wolf_hit",
-    type: "scene",
-    text: "늑대의 발톱이 당신의 팔을 스칩니다! 날카로운 통증이 느껴집니다.\n\n하지만 치명상은 아닙니다. 늑대가 다시 공격 자세를 취합니다.",
-    image: null,
-    choices: [
-      {
-        label: "도망친다",
-        next: "escape_run",
-        requires: null
-      },
-      {
-        label: "나뭇가지를 집어든다",
-        next: "grab_branch",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "escape_run",
-    type: "qte",
-    text: "도망치려면 온 힘을 다해 달려야 한다! 빠르게 발을 움직여라!",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 3000,
-      baseTarget: 15,
-      successNext: "escape_success",
-      failNext: "escape_fail"
-      // deathNext / woundedNext도 필요하면 지정
-    }
-  },
-  {
-    id: "escape_success",
-    type: "scene",
-    text: "당신은 전력으로 달렸습니다! 뒤에서 늑대의 발소리가 점점 멀어집니다.\n\n숨을 헐떡이며 멈춰 섰을 때, 늑대는 더 이상 쫓아오지 않았습니다.\n\n안전한 숲 속 빈터에 도착했습니다.",
-    image: null,
-    choices: [
-      {
-        label: "잠시 쉰다",
-        next: "safe_clearing",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "escape_fail",
-    type: "scene",
-    text: "발이 꼬이고 말았습니다! 늑대가 당신을 따라잡습니다.\n\n뒤돌아볼 틈도 없이, 늑대의 이빨이 당신의 다리를 물어뜯습니다.",
-    image: null,
-    choices: [
-      {
-        label: "고통 속에서 의식이 흐려진다...",
-        next: "check_death",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "grab_branch",
-    type: "scene",
-    text: "당신은 땅에 떨어진 굵은 나뭇가지를 집어듭니다.\n\n늑대가 다시 달려옵니다! 타이밍을 맞춰 휘둘러야 합니다.",
-    image: null,
-    choices: [
-      {
-        label: "늑대를 향해 나뭇가지를 휘두른다",
-        next: "branch_swing",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "branch_swing",
-    type: "qte",
-    text: "정확한 타이밍에 나뭇가지를 휘둘러라!",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["left", "right"],
-      baseTimeLimit: 1500,
-      successNext: "branch_hit",
-      failNext: "branch_miss"
-    }
-  },
-  {
-    id: "branch_hit",
-    type: "scene",
-    text: "정확히 늑대의 옆구리를 가격했습니다! 늑대가 비명을 지르며 물러납니다.\n\n그리고 꼬리를 내리고 어둠 속으로 달아났습니다.\n\n당신은 안도의 한숨을 내쉽니다.",
-    image: null,
-    choices: [
-      {
-        label: "안전한 곳을 찾는다",
-        next: "safe_clearing",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "branch_miss",
-    type: "scene",
-    text: "나뭇가지가 허공을 갈랐습니다! 늑대가 그 틈을 놓치지 않고 덤벼듭니다.\n\n날카로운 이빨이 당신의 어깨에 박힙니다.",
-    image: null,
-    choices: [
-      {
-        label: "고통이 밀려온다...",
-        next: "check_death",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "check_death",
-    type: "scene",
-    text: "",
-    image: null,
-    choices: []
-    // 필요하면 deathNext / woundedNext로 커스텀 가능
-  },
-  {
-    id: "wounded_continue",
-    type: "scene",
-    text: "고통이 밀려오지만, 아직 의식은 남아있습니다. 상처를 입었지만 치명적이지는 않습니다.\n\n숨을 고르며, 당신은 필사적으로 움직입니다. 어떻게든 이 숲에서 살아남아야 합니다.",
-    image: null,
-    choices: [
-      {
-        label: "힘을 내어 도망친다",
-        next: "escape_run",
-        requires: null
-      },
-      {
-        label: "바닥에 떨어진 나뭇가지를 움켜쥔다",
-        next: "grab_branch",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "safe_clearing",
-    type: "scene",
-    text: "당신은 숲 속 작은 빈터에 도착했습니다. 달빛이 비추는 이곳은 비교적 안전해 보입니다.\n\n멀리서 마을의 불빛이 보입니다. 오늘의 모험은 이것으로 충분합니다.\n\n— 데모 종료 —\n\n수고하셨습니다! 이것은 게임의 데모 버전입니다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "death_generic",
-    type: "death",
-    text: "너의 의식은 어둠 속으로 가라앉았다...\n\n너무 많은 상처를 입었습니다. 숲의 어둠이 당신을 삼켰습니다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
+
+/* ───────────────────────────────
+   START / INTRO / CHAR CREATE
+─────────────────────────────── */
+
+{
+  id: "start",
+  type: "start",
+  text: "Shadow Forest Adventure",
+  image: null,
+  choices: []
+},
+
+{
+  id: "intro_scene",
+  type: "scene",
+  text: "당신은 어둠이 내려앉은 깊은 그림자 숲으로 향하려 한다. 그 여정에서 당신의 선택과 행동이 운명을 바꾼다.",
+  image: null,
+  choices: [
+    { label:"시작한다", next:"mountain_path_start" }
+  ]
+},
+
+{
+  id: "char_create",
+  type: "charCreate",
+  text: "",
+  image: null,
+  choices: []
+},
+
+/* ───────────────────────────────
+   본 스토리 시작 — 산길 초입
+─────────────────────────────── */
+
+{
+  id: "mountain_path_start",
+  type: "scene",
+  text: "깊은 안개가 깔린 산길. 그림자에 잠식된 생명체들이 어슬렁거린다는 소문이 도는 길목이다.\n당신 곁엔 병색이 완연한 기사, 세릴이 비틀비틀 서 있다.",
+  image: null,
+  choices: [
+    { label: "세릴을 부축하며 전진한다", next: "ceryl_condition" },
+    { label: "그의 상태를 묻는다", next: "ceryl_talk_1" }
+  ]
+},
+
+{
+  id: "ceryl_talk_1",
+  type: "scene",
+  text: "세릴은 숨을 거칠게 내쉰다.\n“그림자가 내 피에 스며들었다… 하지만 아직, 난… 사람이다.”",
+  image: null,
+  choices: [
+    { label: "계속 걷자고 한다", next: "ceryl_condition" },
+    { label: "여기서 쉬자고 한다", next: "rest_choice" }
+  ]
+},
+
+{
+  id: "ceryl_condition",
+  type: "scene",
+  text: "세릴은 힘겹게 걸음을 옮긴다. 그림자가 그의 혈관에서 서서히 꿈틀거리는 것이 보였다.",
+  image: null,
+  choices: [
+    { label: "조심히 상태를 살핀다", next: "rest_choice" },
+    { label: "서둘러 계속 간다", next: "mael_meet", setFlags:{ rushed:true } }
+  ]
+},
+
+{
+  id: "rest_choice",
+  type: "scene",
+  text: "잠시 쉬어가면 세릴의 몸을 살필 수 있다. 그러나 지체하면 그림자가 더 퍼질 위험도 있다.",
+  image: null,
+  choices: [
+    { label: "그대로 쉬게 한다", next: "rest_qte", requires:{ stats:[{key:"wis", min:4}] } },
+    { label: "강행군을 선택한다", next: "rush_result", setFlags:{ rushed:true } }
+  ]
+},
+
+{
+  id: "rush_result",
+  type: "scene",
+  text: "당신은 쉬지 않고 앞으로 나아가기 시작했다. 세릴은 헐떡이며 따라온다.",
+  image: null,
+  choices: [
+    { label: "계속한다", next:"mael_meet" }
+  ]
+},
+
+/* ───────────────────────────────
+   휴식 QTE
+─────────────────────────────── */
+
+{
+  id: "rest_qte",
+  type: "qte",
+  text: "세릴이 갑자기 경련을 일으킨다. 그림자가 혈관을 타고 빠르게 번지고 있다.\n진정시키기 위해 정확한 지점을 눌러야 한다. 방향키로 지시된 위치를 눌러라.",
+  image: null,
+  qte: {
+    qteType: "direction",
+    directions: ["up","right","left"],
+    targetCount: 2,
+    baseTimeLimit: 2000,
+    successNext: "rest_success",
+    failNext: "rest_fail",
+    woundedNext: "rest_fail",
+    deathNext: "ceryl_death"
   }
+},
+
+{
+  id: "rest_success",
+  type: "scene",
+  text: "세릴의 호흡이 안정된다.\n“…고맙다. 덕분에 아직은 괜찮아.”",
+  image: null,
+  choices: [
+    { label: "다시 길을 나선다", next: "mael_meet" }
+  ]
+},
+
+{
+  id: "rest_fail",
+  type: "scene",
+  text: "손짓을 잘못했다. 세릴의 몸 속 그림자가 폭주한다.\n세릴의 눈이 검게 물든다.",
+  image: null,
+  choices: [
+    { label: "도망친다", next: "ceryl_mutation_qte", setFlags:{ saw_corruption:true } },
+    { label: "싸운다", next: "ceryl_mutation_battle", requires:{ stats:[{key:"agi", min:4}]} }
+  ]
+},
+
+/* ───────────────────────────────
+   세릴 변이 QTE
+─────────────────────────────── */
+
+{
+  id: "ceryl_mutation_qte",
+  type: "qte",
+  text: "폭주한 세릴이 칼을 휘두르며 다가온다. Z키를 연타해 필사적으로 도망쳐라!",
+  image: null,
+  qte:{
+    qteType:"mash",
+    key:"z",
+    baseTarget:12,
+    baseTimeLimit:2500,
+    successNext:"escape_success",
+    failNext:"escape_fail",
+    woundedNext:"escape_fail",
+    deathNext:"death_by_ceryl"
+  }
+},
+
+{
+  id: "escape_success",
+  type: "scene",
+  text: "당신은 가까스로 칼날을 피해 안개 속으로 달아났다.",
+  image: null,
+  choices:[
+    { label:"더 깊은 곳으로 도망친다", next:"mael_meet" }
+  ]
+},
+
+{
+  id: "escape_fail",
+  type: "scene",
+  text: "당신은 넘어진다. 세릴의 칼이 팔을 스쳤다.",
+  image: null,
+  choices:[
+    { label:"비틀거리며 도망친다", next:"mael_meet", setFlags:{ injured:true } }
+  ]
+},
+
+{
+  id: "ceryl_mutation_battle",
+  type: "scene",
+  text: "당신은 칼을 움켜쥔다.\n“제발… 더 늦기 전에…!”\n이미 그림자에 잠식된 세릴이 울부짖는다.",
+  image:null,
+  choices:[
+    { label:"공격한다", next:"ceryl_battle_qte" }
+  ]
+},
+
+{
+  id: "ceryl_battle_qte",
+  type: "qte",
+  text: "세릴의 칼날이 번개처럼 움직인다. 방향키로 공격을 피하라!",
+  image:null,
+  qte:{
+    qteType:"direction",
+    directions:["left","left","right","up"],
+    targetCount:3,
+    baseTimeLimit:1800,
+    successNext:"ceryl_battle_win",
+    failNext:"ceryl_battle_lose",
+    woundedNext:"ceryl_battle_lose",
+    deathNext:"death_by_ceryl"
+  }
+},
+
+{
+  id: "ceryl_battle_win",
+  type: "scene",
+  text: "세릴은 마지막 힘으로 미소를 지었다.\n“…부탁한다. 그림자의 근원을… 찾아라…”",
+  image:null,
+  choices:[
+    { label:"눈물을 삼키며 전진한다", next:"mael_meet", setFlags:{ ceryl_dead:true } }
+  ]
+},
+
+{
+  id: "ceryl_battle_lose",
+  type: "scene",
+  text: "당신은 쓰러지고, 세릴의 칼날이 내려온다.",
+  image:null,
+  choices:[
+    { label:"마지막 순간까지 버틴다", next:"ending_death" }
+  ]
+},
+
+/* ───────────────────────────────
+   마엘 조우
+─────────────────────────────── */
+
+{
+  id: "mael_meet",
+  type:"scene",
+  text:"앞길에서 마엘, 그림자를 연구하는 학자가 허겁지겁 책을 껴안고 달려온다.\n“좋은 타이밍이야! 너도 그림자에 쫓기고 있지?”",
+  image:null,
+  choices:[
+    { label:"무슨 일이냐고 묻는다", next:"mael_explain" },
+    { label:"세릴의 상태를 말한다", next:"mael_react", requires:{ flags:[{key:"ceryl_dead", value:true}] } }
+  ]
+},
+
+{
+  id: "mael_react",
+  type:"scene",
+  text:"“…그렇군. 안타깝지만… 그의 죽음이 헛되지 않게 해야 한다.”",
+  image:null,
+  choices:[
+    { label:"계속 듣는다", next:"mael_explain" }
+  ]
+},
+
+{
+  id: "mael_explain",
+  type:"scene",
+  text:"“그림자는 생명력이 약해졌을 때 스며들어 변이시킨다. 근원은… 깊은 숲의 ‘심장’이다.”",
+  image:null,
+  choices:[
+    { label:"그 심장으로 향한다", next:"entrance_tarona" },
+    { label:"세릴을 치료할 방법을 묻는다", next:"mael_cure" }
+  ]
+},
+
+{
+  id:"mael_cure",
+  type:"scene",
+  text:"“이론상 처음 잠식될 때라면 되돌릴 수 있지만… 지금은 너무 늦었을지도.”",
+  image:null,
+  choices:[
+    { label:"포기하지 않겠다고 말한다", next:"entrance_tarona" },
+    { label:"현실을 받아들인다", next:"entrance_tarona", setFlags:{ accepted_reality:true } }
+  ]
+},
+
+/* ───────────────────────────────
+   타로나 조우
+─────────────────────────────── */
+
+{
+  id:"entrance_tarona",
+  type:"scene",
+  text:"숲의 입구에서 엘프 사냥꾼 타로나가 활을 겨누고 있다.\n“서라. 너희에게 그림자의 냄새가 난다.”",
+  image:null,
+  choices:[
+    { label:"자신은 감염되지 않았다고 말한다", next:"tarona_trust_try" },
+    { label:"무기를 내려놓는다", next:"tarona_negotiate" }
+  ]
+},
+
+{
+  id:"tarona_trust_try",
+  type:"scene",
+  text:"타로나는 의심스러운 눈빛이지만 흔들린다.",
+  image:null,
+  choices:[
+    { label:"마엘에게 증명하게 한다", next:"tarona_join" },
+    { label:"직접 팔을 보여준다", next:"infection_check_qte" }
+  ]
+},
+
+{
+  id:"infection_check_qte",
+  type:"qte",
+  text:"타로나가 반짝이는 의식을 통해 감염 여부를 판별한다.\n지시되는 방향에 맞춰 에너지를 흘려보내라.",
+  image:null,
+  qte:{
+    qteType:"direction",
+    directions:["up","down","right"],
+    targetCount:2,
+    baseTimeLimit:2000,
+    successNext:"tarona_join",
+    failNext:"tarona_distrust",
+    woundedNext:"tarona_distrust",
+    deathNext:"death_shadow_burst"
+  }
+},
+
+{
+  id:"tarona_negotiate",
+  type:"scene",
+  text:"“무기를 내려놓는다고 네가 안전하다는 증거는 되지 않는다.”",
+  image:null,
+  choices:[
+    { label:"그래도 신뢰를 요구한다", next:"tarona_join", requires:{ stats:[{key:"wis", min:5}] } },
+    { label:"지나칠 수 있냐고 묻는다", next:"tarona_distrust" }
+  ]
+},
+
+{
+  id:"tarona_join",
+  type:"scene",
+  text:"타로나는 활을 내리고 고개를 끄덕인다.\n“좋다. 함께 가지.”",
+  image:null,
+  choices:[
+    { label:"숲 깊숙이 들어간다", next:"gard_meet" }
+  ]
+},
+
+{
+  id:"tarona_distrust",
+  type:"scene",
+  text:"타로나는 길을 막아선다.\n“그림자에 노출된 자는 지나갈 수 없다.”",
+  image:null,
+  choices:[
+    { label:"억지로 돌파한다", next:"breakthrough_qte" },
+    { label:"돌아간다", next:"ending_wander" }
+  ]
+},
+
+/* ───────────────────────────────
+   돌파 QTE
+─────────────────────────────── */
+
+{
+  id:"breakthrough_qte",
+  type:"qte",
+  text:"타로나가 활을 당긴다! Z키를 연타해 공격을 돌파하라!",
+  image:null,
+  qte:{
+    qteType:"mash",
+    key:"z",
+    baseTarget:14,
+    baseTimeLimit:2300,
+    successNext:"breakthrough_success",
+    failNext:"breakthrough_fail",
+    woundedNext:"breakthrough_fail",
+    deathNext:"death_by_tarona"
+  }
+},
+
+{
+  id:"breakthrough_success",
+  type:"scene",
+  text:"당신은 타로나를 밀치고 숲 속으로 뛰어들었다.",
+  image:null,
+  choices:[
+    { label:"깊은 숲으로 계속 간다", next:"gard_meet" }
+  ]
+},
+
+{
+  id:"breakthrough_fail",
+  type:"scene",
+  text:"당신은 화살을 맞고 쓰러진다.",
+  image:null,
+  choices:[
+    { label:"마지막 숨을 쉰다", next:"ending_death" }
+  ]
+},
+
+/* ───────────────────────────────
+   대장장이 가르드 조우
+─────────────────────────────── */
+
+{
+  id:"gard_meet",
+  type:"scene",
+  text:"어두운 공터 한복판. 그림자에 잠식된 마을의 대장장이 가르드가 거대한 망치를 든 채 나타난다.\n그러나 그의 눈엔 아직 희미하게 인간의 광채가 남아 있다.",
+  image:null,
+  choices:[
+    { label:"말을 걸어본다", next:"gard_talk_1" },
+    { label:"싸울 준비를 한다", next:"gard_battle_qte1" }
+  ]
+},
+
+{
+  id:"gard_talk_1",
+  type:"scene",
+  text:"“너… 나를… 기억하나…?”\n그의 목소리는 갈라져 있지만 절박했다.",
+  image:null,
+  choices:[
+    { label:"기억난다고 한다", next:"gard_memory" },
+    { label:"기억나지 않는다고 솔직히 말한다", next:"gard_anger" }
+  ]
+},
+
+{
+  id:"gard_memory",
+  type:"scene",
+  text:"당신의 말에 가르드는 미약하게 웃었다.\n“…내 마지막 바람은… 이 숲의 심장을… 부수는 것…”",
+  image:null,
+  choices:[
+    { label:"그의 도움을 받는다", next:"gard_accompany" },
+    { label:"혼자 가겠다고 한다", next:"heart_entrance" }
+  ]
+},
+
+{
+  id:"gard_accompany",
+  type:"scene",
+  text:"가르드는 힘겹게 고개를 끄덕인다.\n“함께… 끝을 내자…”",
+  image:null,
+  choices:[
+    { label:"심장으로 향한다", next:"heart_entrance" }
+  ]
+},
+
+{
+  id:"gard_anger",
+  type:"scene",
+  text:"그림자가 격렬하게 출렁인다.\n“거짓말… 하지 말아라!”",
+  image:null,
+  choices:[
+    { label:"싸운다", next:"gard_battle_qte1" },
+    { label:"도망친다", next:"ending_escape" }
+  ]
+},
+
+/* ───────────────────────────────
+   가르드 전투 QTE
+─────────────────────────────── */
+
+{
+  id:"gard_battle_qte1",
+  type:"qte",
+  text:"가르드가 그림자 망치를 휘두른다! 방향키로 피하라!",
+  image:null,
+  qte:{
+    qteType:"direction",
+    directions:["left","up","right"],
+    targetCount:2,
+    baseTimeLimit:2000,
+    successNext:"gard_battle_win",
+    failNext:"gard_battle_fail",
+    woundedNext:"gard_battle_fail",
+    deathNext:"death_by_gard"
+  }
+},
+
+{
+  id:"gard_battle_win",
+  type:"scene",
+  text:"“끝…을… 내줘…”\n가르드가 쓰러진다.",
+  image:null,
+  choices:[
+    { label:"숲의 심장으로 간다", next:"heart_entrance", setFlags:{ gard_defeated:true } }
+  ]
+},
+
+{
+  id:"gard_battle_fail",
+  type:"scene",
+  text:"당신은 망치의 충격에 쓰러진다.",
+  image:null,
+  choices:[
+    { label:"마지막 숨을 쉰다", next:"ending_death" }
+  ]
+},
+
+/* ───────────────────────────────
+   숲의 심장
+─────────────────────────────── */
+
+{
+  id:"heart_entrance",
+  type:"scene",
+  text:"심장처럼 뛰는 거대한 그림자 구체가 숲의 중앙에서 꿈틀거린다.\n그 안엔 아린이, 마엘이, 타로나가, 가르드가 겪었던 모든 운명의 끝이 모여든다.",
+  image:null,
+  choices:[
+    { label:"심장을 파괴한다", next:"heart_destroy_qte" },
+    { label:"심장을 이용한다", next:"ending_shadow", requires:{ flags:[{key:"gard_defeated", value:false}] } },
+    { label:"세릴을 떠올린다", next:"ending_ceryl_memory", requires:{ flags:[{key:"ceryl_dead", value:true}] } }
+  ]
+},
+
+{
+  id:"heart_destroy_qte",
+  type:"qte",
+  text:"그림자의 심장이 요동친다!\nZ키를 연타해 심장을 찢어라!",
+  image:null,
+  qte:{
+    qteType:"mash",
+    key:"z",
+    baseTarget:18,
+    baseTimeLimit:2600,
+    successNext:"ending_destroy",
+    failNext:"heart_destroy_fail",
+    woundedNext:"heart_destroy_fail",
+    deathNext:"death_by_heart"
+  }
+},
+
+{
+  id:"heart_destroy_fail",
+  type:"scene",
+  text:"그림자가 당신의 몸을 통째로 삼킨다.",
+  image:null,
+  choices:[
+    { label:"어둠 속에 잠긴다", next:"ending_shadow" }
+  ]
+},
+
+/* ───────────────────────────────
+   엔딩들
+─────────────────────────────── */
+
+{
+  id:"ending_destroy",
+  type:"scene",
+  text:"당신은 그림자의 근원을 파괴했다.\n숲은 조금씩 생기를 되찾고, 사라져가던 생명들이 되살아난다.\n당신의 선택으로 이 세계는 다시 살아갈 수 있게 되었다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+},
+
+{
+  id:"ending_shadow",
+  type:"scene",
+  text:"당신은 그림자와 하나가 되었다.\n더는 인간도, 괴물도 아니지만…\n어둠은 당신을 받아들였고, 숲은 당신을 새로운 심장으로 삼았다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+},
+
+{
+  id:"ending_ceryl_memory",
+  type:"scene",
+  text:"당신은 마지막 순간, 세릴의 미소를 떠올린다.\n그의 죽음 앞에서 배운 것은 두려움이 아닌, 인간의 흔들리는 마음이었다.\n당신은 조용히 숲을 떠나 새로운 길을 찾는다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+},
+
+{
+  id:"ending_escape",
+  type:"scene",
+  text:"당신은 숲을 벗어났지만, 마음 한켠에 끝내 이겨내지 못한 그림자의 기운이 남아 있었다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+},
+
+{
+  id:"ending_wander",
+  type:"scene",
+  text:"당신은 숲을 떠나 길을 잃었다. 그림자는 멀어졌지만 목적도 함께 사라졌다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+},
+
+{
+  id:"ending_death",
+  type:"scene",
+  text:"당신의 의지는 강했지만… 그림자의 힘은 그보다 더 거셌다.",
+  image:null,
+  choices:[
+    { label:"처음으로 돌아간다", next:"__RESTART__" }
+  ]
+}
+
 ];
 
 var charCreateStats = {
