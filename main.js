@@ -572,7 +572,7 @@ var SCENES = [
 
 {
   id:"ending_destroy",
-  type:"scene",
+  type:"end",
   text:"당신은 그림자의 근원을 파괴했다.\n숲은 조금씩 생기를 되찾고, 사라져가던 생명들이 되살아난다.\n당신의 선택으로 이 세계는 다시 살아갈 수 있게 되었다.",
   image:null,
   choices:[
@@ -582,7 +582,7 @@ var SCENES = [
 
 {
   id:"ending_shadow",
-  type:"scene",
+  type:"end",
   text:"당신은 그림자와 하나가 되었다.\n더는 인간도, 괴물도 아니지만…\n어둠은 당신을 받아들였고, 숲은 당신을 새로운 심장으로 삼았다.",
   image:null,
   choices:[
@@ -592,7 +592,7 @@ var SCENES = [
 
 {
   id:"ending_ceryl_memory",
-  type:"scene",
+  type:"end",
   text:"당신은 마지막 순간, 세릴의 미소를 떠올린다.\n그의 죽음 앞에서 배운 것은 두려움이 아닌, 인간의 흔들리는 마음이었다.\n당신은 조용히 숲을 떠나 새로운 길을 찾는다.",
   image:null,
   choices:[
@@ -602,7 +602,7 @@ var SCENES = [
 
 {
   id:"ending_escape",
-  type:"scene",
+  type:"end",
   text:"당신은 숲을 벗어났지만, 마음 한켠에 끝내 이겨내지 못한 그림자의 기운이 남아 있었다.",
   image:null,
   choices:[
@@ -612,7 +612,7 @@ var SCENES = [
 
 {
   id:"ending_wander",
-  type:"scene",
+  type:"end",
   text:"당신은 숲을 떠나 길을 잃었다. 그림자는 멀어졌지만 목적도 함께 사라졌다.",
   image:null,
   choices:[
@@ -622,7 +622,7 @@ var SCENES = [
 
 {
   id:"ending_death",
-  type:"scene",
+  type:"end",
   text:"당신의 의지는 강했지만… 그림자의 힘은 그보다 더 거셌다.",
   image:null,
   choices:[
