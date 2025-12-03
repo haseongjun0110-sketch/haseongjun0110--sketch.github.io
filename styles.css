@@ -31,8 +31,6 @@ body.font-large {
   font-size: 20px;
 }
 
-/* --- START SCREEN --- */
-
 #start-screen {
   position: fixed;
   top: 0;
@@ -77,8 +75,6 @@ body.font-large {
   50% { opacity: 0.3; }
 }
 
-/* --- HEADER --- */
-
 #ui-header {
   display: flex;
   justify-content: space-between;
@@ -113,8 +109,6 @@ body.font-large {
   cursor: not-allowed;
 }
 
-/* --- GAME CONTAINER --- */
-
 #game-container {
   flex: 1;
   display: flex;
@@ -144,8 +138,6 @@ body.font-large {
   display: none;
 }
 
-/* --- SCENE TEXT --- */
-
 #scene-text {
   background: rgba(0, 0, 0, 0.3);
   padding: 20px;
@@ -158,8 +150,6 @@ body.font-large {
   border-left: 3px solid #e94560;
   transition: font-size 0.1s ease;
 }
-
-/* --- CHOICE BUTTONS --- */
 
 #scene-choices {
   display: flex;
@@ -191,7 +181,7 @@ body.font-large {
   color: #666;
 }
 
-/* --- CHOICE REQUIREMENTS --- */
+/* 선택지 + 요구 능력치 표시용 */
 
 .choice-row {
   display: flex;
@@ -211,14 +201,12 @@ body.font-large {
 }
 
 .choice-requirements .req-met {
-  color: #6fdc6f;
+  color: #6fdc6f;  /* 충족: 초록 */
 }
 
 .choice-requirements .req-fail {
-  color: #ff6f6f;
+  color: #ff6f6f;  /* 미충족: 빨강 */
 }
-
-/* --- CHARACTER CREATION --- */
 
 .char-create-container {
   display: flex;
@@ -233,7 +221,13 @@ body.font-large {
   color: #e0e0e0;
   border-radius: 8px;
   font-size: 1em;
+  width: 100%;
   max-width: 300px;
+}
+
+.char-create-container input[type="text"]:focus {
+  outline: none;
+  border-color: #e94560;
 }
 
 .stat-row {
@@ -266,6 +260,9 @@ body.font-large {
   cursor: pointer;
   border-radius: 50%;
   font-size: 1.2em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   transition: all 0.3s;
 }
 
@@ -274,7 +271,6 @@ body.font-large {
   color: #fff;
 }
 
-/* 새로 강화한 비활성화 스타일 */
 .stat-row button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
@@ -284,11 +280,35 @@ body.font-large {
 }
 
 .points-remaining {
+  font-size: 1.1em;
   color: #e94560;
   text-align: center;
+  padding: 10px;
 }
 
-/* --- QTE COMMON --- */
+.start-game-btn {
+  padding: 15px 30px;
+  background: #e94560;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  transition: all 0.3s;
+  align-self: center;
+}
+
+.start-game-btn:hover:not(:disabled) {
+  background: #ff6b8a;
+  transform: scale(1.05);
+}
+
+.start-game-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .qte-overlay {
   position: fixed;
@@ -315,14 +335,15 @@ body.font-large {
   max-width: 500px;
   width: 90%;
   text-align: center;
+  box-shadow: 0 0 40px rgba(233, 69, 96, 0.3);
 }
 
 .qte-text {
   font-size: 1.3em;
   margin-bottom: 30px;
+  line-height: 1.6;
+  color: #fff;
 }
-
-/* --- QTE TIMER --- */
 
 .qte-timer {
   width: 100%;
@@ -330,6 +351,7 @@ body.font-large {
   background: rgba(0, 0, 0, 0.5);
   border-radius: 10px;
   margin-bottom: 30px;
+  overflow: hidden;
   border: 1px solid rgba(233, 69, 96, 0.5);
 }
 
@@ -338,9 +360,8 @@ body.font-large {
   background: linear-gradient(90deg, #e94560, #ff6b8a);
   width: 100%;
   transition: width 0.1s linear;
+  border-radius: 10px;
 }
-
-/* --- DIRECTION QTE --- */
 
 #qte-direction-grid {
   display: grid;
@@ -363,19 +384,44 @@ body.font-large {
   transition: all 0.2s;
 }
 
+.dir-btn:hover {
+  background: rgba(233, 69, 96, 0.4);
+}
+
 .dir-btn.active {
   background: #e94560;
   border-color: #ff6b8a;
   color: #fff;
   animation: glow 0.5s infinite alternate;
+  box-shadow: 0 0 20px rgba(233, 69, 96, 0.8);
 }
 
 @keyframes glow {
   from { box-shadow: 0 0 10px rgba(233, 69, 96, 0.5); }
-  to   { box-shadow: 0 0 25px rgba(233, 69, 96, 0.9); }
+  to { box-shadow: 0 0 25px rgba(233, 69, 96, 0.9); }
 }
 
-/* --- MASH QTE --- */
+#qte-direction-hint {
+  color: #888;
+  font-size: 0.9em;
+}
+
+#qte-mash-overlay .qte-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#qte-mash-info {
+  font-size: 1.2em;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+#qte-mash-target {
+  color: #e94560;
+  font-weight: bold;
+}
 
 #qte-mash-button {
   width: 120px;
@@ -388,6 +434,8 @@ body.font-large {
   font-size: 2.5em;
   font-weight: bold;
   transition: transform 0.1s;
+  box-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+  margin-bottom: 20px;
 }
 
 #qte-mash-button:active {
@@ -396,10 +444,9 @@ body.font-large {
 
 #qte-mash-count {
   font-size: 3em;
+  font-weight: bold;
   color: #e94560;
 }
-
-/* --- SETTINGS --- */
 
 #settings-overlay {
   position: fixed;
@@ -425,6 +472,15 @@ body.font-large {
   border: 2px solid #e94560;
   max-width: 400px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+#settings-modal h2 {
+  text-align: center;
+  color: #e94560;
+  margin-bottom: 25px;
+  font-size: 1.5em;
 }
 
 .settings-section {
@@ -437,7 +493,15 @@ body.font-large {
   border-bottom: none;
 }
 
-.settings-buttons {
+.settings-section h3 {
+  color: #888;
+  font-size: 0.9em;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.settings-section .settings-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -446,10 +510,13 @@ body.font-large {
 .settings-section button {
   flex: 1;
   min-width: 80px;
-  padding: 10px;
+  padding: 10px 15px;
   background: rgba(233, 69, 96, 0.2);
   border: 1px solid rgba(233, 69, 96, 0.5);
   color: #e0e0e0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.3s;
 }
 
 .settings-section button:hover:not(:disabled) {
@@ -462,6 +529,40 @@ body.font-large {
   cursor: not-allowed;
 }
 
+.settings-section label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  color: #aaa;
+}
+
+.settings-section select {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(233, 69, 96, 0.5);
+  color: #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.settings-section select:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.settings-section input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+#settings-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 #btn-settings-close {
   padding: 12px 40px;
   background: #e94560;
@@ -469,6 +570,8 @@ body.font-large {
   color: #fff;
   cursor: pointer;
   border-radius: 8px;
+  font-size: 1em;
+  font-weight: bold;
   transition: all 0.3s;
 }
 
@@ -476,34 +579,41 @@ body.font-large {
   background: #ff6b8a;
 }
 
-/* --- RESPONSIVE --- */
-
 @media (max-width: 600px) {
   #start-title {
     font-size: 2em;
   }
-
+  
   #ui-header {
     flex-direction: column;
     gap: 10px;
     text-align: center;
   }
-
+  
   #game-container {
     padding: 15px;
   }
-
+  
+  #scene-text {
+    padding: 15px;
+    max-height: 200px;
+  }
+  
+  .qte-modal {
+    padding: 25px;
+  }
+  
   #qte-direction-grid {
     grid-template-columns: repeat(3, 50px);
     grid-template-rows: repeat(3, 50px);
   }
-
+  
   .dir-btn {
     width: 50px;
     height: 50px;
     font-size: 1.5em;
   }
-
+  
   #qte-mash-button {
     width: 100px;
     height: 100px;
