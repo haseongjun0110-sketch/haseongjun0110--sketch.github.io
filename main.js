@@ -1,7 +1,17 @@
-var textDisplayTimer = null;
+// main.js — 씬 배열 주도 엔진 + 엔트리식 창작 모드
 
+// ──────────────────────
+// 전역 상태
+// ──────────────────────
+var textDisplayTimer = null;
+var charCreateStats = null;
+
+// 씬 정의 (브라우저 저장에서 불러옴)
+var SCENES = [];
+
+// 게임 상태
 var state = {
-  currentSceneId: "start",
+  currentSceneId: null,
   player: {
     name: "",
     stats: {
@@ -9,11 +19,11 @@ var state = {
       wis: 3,
       vit: 3
     },
-    failures: 0
+    failures: 0 // 지금은 안 써도 되고, 필요하면 effects로 조정 가능
   },
-  flags: {},
+  meters: {}, // 부상, 공작, 의심 등 자유 게이지
+  flags: {},  // 플래그
   runActive: false,
-  isDead: false,
   settings: {
     textSpeed: "normal",
     qteDifficulty: "normal",
@@ -22,1530 +32,324 @@ var state = {
   },
   currentQTE: {
     sceneId: null,
-    type: null,
+    type: null,          // "direction" | "mash"
     timeLimit: 0,
-    startedAt: 0,
+    endTime: 0,
     timerId: null,
+    directions: null,
     targetDir: null,
+    targetCount: 0,
+    currentCount: 0,
     mashKey: "z",
     mashTarget: 0,
     mashCount: 0,
     overlayId: null,
-    targetCount: 1,
-    currentCount: 0,
     successNext: null,
     failNext: null,
-    deathNext: null,
-    woundedNext: null,
-    directions: null
+    successEffects: null,
+    failEffects: null
   }
 };
 
-var SCENES = [
-  {
-    id: "start",
-    type: "start",
-    text: "Glass Line: 기업의 심장",
-    image: null,
-    choices: []
-  },
-  {
-    id: "char_create",
-    type: "charCreate",
-    text:
-      "너는 정보전을 전문으로 하는 프리랜서 용병이다.\n" +
-      "이번 계약은, 가족의 병원비 전액을 대가로 경쟁사 B 회장을 무너뜨리는 것.\n\n" +
-      "이름을 정하고, 어느 쪽에 더 특화된 사람인지 떠올려라.\n" +
-      "민첩은 상황판단과 손놀림, 지혜는 해킹과 판짜기, 체력은 버티는 힘을 의미한다.",
-    image: null,
-    choices: []
-  },
+// ──────────────────────
+// 로컬스토리지: 씬 / 세이브
+// ──────────────────────
+var SCENES_KEY = "glassline_scenes";
+var SAVE_KEY = "glassline_save";
 
-  // ──────────────────────
-  // 브리핑 & 첫 허브
-  // ──────────────────────
-  {
-    id: "intro_scene",
-    type: "scene",
-    text:
-      "새벽, 비 내리는 공사장 옥상.\n" +
-      "기업 A의 부사장이 담배를 비틀어 끄며 너를 돌아본다.\n\n" +
-      "“문건 하나만 가져와. B사 회장의 개인 금고에 들어있어.”\n" +
-      "“그걸로 회장을 내려앉히고, 회사도 반쯤은 같이 무너뜨릴 거다.”\n\n" +
-      "그의 눈빛이 잠시 흐릿해졌다가, 다시 차갑게 식는다.\n" +
-      "“대신, 네 가족 병원비는 우리가 끝까지 책임진다. 도와주는 게 아니라… 거래야.”",
-    image: null,
-    choices: [
-      {
-        label: "“조건만 지키면 된다.”",
-        next: "route_hub",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "“문건이 정확히 뭔지는 말 안 해줄 거냐.”",
-        next: "route_hub",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  {
-    id: "route_hub",
-    type: "scene",
-    text:
-      "B사 본사 야경이 아래로 펼쳐진다.\n" +
-      "손에는 대충 그려진 도면 한 장과, 불완전한 정보 몇 조각뿐.\n\n" +
-      "어디부터 파고들지 정해야 한다.",
-    image: null,
-    choices: [
-      {
-        label: "야간 트래픽을 타고 네트워크부터 뚫는다 (해킹)",
-        next: "hack_intro",
-        requires: {
-          flags: [
-            { key: "flag_route_hack_locked", not: true }
-          ]
-        }
-      },
-      {
-        label: "건물 안으로 직접 잠입한다 (잠입)",
-        next: "infil_intro",
-        requires: {
-          flags: [
-            { key: "flag_route_infil_locked", not: true }
-          ]
-        }
-      },
-      {
-        label: "B사 인사팀 인간 하나를 납치해 털어본다 (납치·심문)",
-        next: "kidnap_intro",
-        requires: {
-          flags: [
-            { key: "flag_route_kidnap_locked", not: true }
-          ]
-        }
-      },
-      {
-        label: "더 이상 시도할 방법이 없다",
-        next: "bad_all_routes_failed",
-        requires: {
-          flags: [
-            { key: "flag_route_hack_locked", value: true },
-            { key: "flag_route_infil_locked", value: true },
-            { key: "flag_route_kidnap_locked", value: true }
-          ]
-        }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 해킹 루트
-  // ──────────────────────
-  {
-    id: "hack_intro",
-    type: "scene",
-    text:
-      "인근 빌딩 옥상, 노트북과 안테나를 펼친다.\n" +
-      "B사 건물에서 새어 나오는 무선 트래픽이 밤공기처럼 넘실거린다.\n\n" +
-      "어떻게 물꼬를 틀까.",
-    image: null,
-    choices: [
-      {
-        label: "무선 AP를 통째로 가로채 인증 토큰을 훔친다",
-        next: "qte_hack_sniff",
-        requires: null
-      },
-      {
-        label: "직원 VPN을 흉내 내어 조용히 파고든다",
-        next: "qte_hack_vpn",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "qte_hack_sniff",
-    type: "qte",
-    text:
-      "보안팀 스캐너가 주파수 대역을 훑는다.\n" +
-      "탐지선을 피해가며 패킷을 긁어야 한다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["up", "down", "left", "right"],
-      baseTimeLimit: 2500,
-      targetCount: 2,
-      successNext: "hack_sniff_success",
-      failNext: "hack_sniff_fail"
-    }
-  },
-  {
-    id: "hack_sniff_success",
-    type: "scene",
-    text:
-      "인증 토큰 몇 개가 손에 들어온다.\n" +
-      "그 중 하나엔 회장 개인 단말로 보이는 식별자가 붙어 있다.\n\n" +
-      "이걸로 내부 메일 서버를 두드려볼 수 있겠다.",
-    image: null,
-    choices: [
-      {
-        label: "내부 메일 서버에 접속해 본다",
-        next: "hack_mail_access",
-        requires: null,
-        setFlags: {
-          flag_route_hack_cleared: true,
-          flag_info_mail: true
-        }
-      },
-      {
-        label: "일단 다른 루트와 병행하기 위해 물러난다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_hack_cleared: true
-        }
-      }
-    ]
-  },
-  {
-    id: "hack_sniff_fail",
-    type: "scene",
-    text:
-      "경고 로그가 쌓이는 소리가 귀에 들리는 듯하다.\n" +
-      "모니터에 보안 팀의 역추적 IP가 찍힌다.\n\n" +
-      "더 이상 이 채널은 위험하다.",
-    image: null,
-    choices: [
-      {
-        label: "장비를 접고 다른 방법을 찾는다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_hack_locked: true,
-          flag_crime_exposed: true
-        }
-      }
-    ]
-  },
-
-  {
-    id: "qte_hack_vpn",
-    type: "qte",
-    text:
-      "직원들의 평소 접속 패턴을 흉내 낸다.\n" +
-      "미묘한 타이밍 차이를 맞추지 못하면 바로 튕겨나간다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 4000,
-      baseTarget: 15,
-      successNext: "hack_vpn_success",
-      failNext: "hack_vpn_fail"
-    }
-  },
-  {
-    id: "hack_vpn_success",
-    type: "scene",
-    text:
-      "로그인이 성공한다.\n" +
-      "임원 캘린더에 ‘비공개 일정’이 줄지어 있다.\n" +
-      "그 중 하나: “47F 별관 – 개인 금고 점검”.",
-    image: null,
-    choices: [
-      {
-        label: "별관 층 정보를 머릿속에 새기고 빠져나온다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_hack_cleared: true,
-          flag_info_schedule: true
-        }
-      },
-      {
-        label: "지금 바로 이 정보로 심층 서버에 더 들어가 본다",
-        next: "mid_access_server",
-        requires: null,
-        setFlags: {
-          flag_route_hack_cleared: true,
-          flag_info_schedule: true
-        }
-      }
-    ]
-  },
-  {
-    id: "hack_vpn_fail",
-    type: "scene",
-    text:
-      "접속이 튕기고, 화면에 `다중 로그인 시도 감지` 메시지가 뜬다.\n" +
-      "누군가 이 라인을 타고 네 쪽으로 오고 있을지도 모른다.",
-    image: null,
-    choices: [
-      {
-        label: "즉시 접속을 끊고 다른 방법을 찾는다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_hack_locked: true
-        }
-      }
-    ]
-  },
-
-  {
-    id: "hack_mail_access",
-    type: "scene",
-    text:
-      "메일함을 훑자, 회장과 A사 간부 사이의 오래된 메일 쓰레드가 드러난다.\n" +
-      "싸우고, 화해하고, 다시 싸우는 문장들.\n\n" +
-      "“당신이 내 회사를 이해해줄 줄 알았어.”\n" +
-      "“그건 당신 집착을 덮어주는 말이 아니야.”",
-    image: null,
-    choices: [
-      {
-        label: "로그를 저장하고 한 발 물러난다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_hack_cleared: true,
-          flag_info_mail: true
-        }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 잠입 루트
-  // ──────────────────────
-  {
-    id: "infil_intro",
-    type: "scene",
-    text:
-      "야간 출입문. 경비 둘이 졸림을 참으며 CCTV를 훑고 있다.\n" +
-      "너는 후드를 눌러쓰고 건물 그림자에 붙는다.",
-    image: null,
-    choices: [
-      {
-        label: "경비 교대 타이밍에 맞춰 로비를 통과한다",
-        next: "qte_infil_lobby",
-        requires: null
-      },
-      {
-        label: "외벽 청소용 작업대에 매달려 3층까지 올라간다",
-        next: "qte_infil_wall",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "qte_infil_lobby",
-    type: "qte",
-    text:
-      "교대 종이 울린다.\n" +
-      "카메라 사각지대를 타고 움직이지 못하면, 그대로 얼굴이 찍힌다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["left", "right"],
-      baseTimeLimit: 2500,
-      targetCount: 2,
-      successNext: "infil_lobby_success",
-      failNext: "infil_lobby_fail"
-    }
-  },
-  {
-    id: "infil_lobby_success",
-    type: "scene",
-    text:
-      "무사히 로비를 통과한다.\n" +
-      "인적 없는 복도 끝에 ‘임원 전용층’ 표시가 걸린 엘리베이터가 보인다.",
-    image: null,
-    choices: [
-      {
-        label: "임원 전용 엘리베이터를 따라가 본다",
-        next: "infil_exec_floor",
-        requires: null,
-        setFlags: { flag_route_infil_cleared: true }
-      }
-    ]
-  },
-  {
-    id: "infil_lobby_fail",
-    type: "scene",
-    text:
-      "카메라가 딱 너를 향해 돌아온다.\n" +
-      "경보음이 울리기 시작한다. 문 앞 경비의 시선이 너와 마주친다.",
-    image: null,
-    choices: [
-      {
-        label: "몸을 돌려 어둠 속으로 튄다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_infil_locked: true,
-          flag_crime_exposed: true
-        }
-      }
-    ]
-  },
-
-  {
-    id: "qte_infil_wall",
-    type: "qte",
-    text:
-      "낡은 작업대가 삐걱거린다.\n" +
-      "떨어지지 않으려면 몸의 중심을 계속 조정해야 한다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 4500,
-      baseTarget: 14,
-      successNext: "infil_wall_success",
-      failNext: "infil_wall_fail"
-    }
-  },
-  {
-    id: "infil_wall_success",
-    type: "scene",
-    text:
-      "3층 발코니 난간을 잡고 몸을 끌어올린다.\n" +
-      "유리창 너머로 회장실 비서석과 문이 보인다.",
-    image: null,
-    choices: [
-      {
-        label: "자물쇠를 따고 안으로 들어간다",
-        next: "infil_exec_floor",
-        requires: null,
-        setFlags: { flag_route_infil_cleared: true }
-      }
-    ]
-  },
-  {
-    id: "infil_wall_fail",
-    type: "scene",
-    text:
-      "작업대가 크게 흔들리고, 너는 비명을 삼킨 채 바닥으로 떨어진다.\n" +
-      "뼈가 부러진 느낌이지만, 일단 살아는 있다.",
-    image: null,
-    choices: [
-      {
-        label: "이대로 계속했다간 죽는다. 돌아간다",
-        next: "route_hub",
-        requires: null,
-        setFlags: { flag_route_infil_locked: true }
-      }
-    ]
-  },
-
-  {
-    id: "infil_exec_floor",
-    type: "scene",
-    text:
-      "회장실 앞 복도.\n" +
-      "장식장 속 가족 사진 중 하나에서, 네 고용주와 닮은 얼굴이 보인다.\n\n" +
-      "A사 간부의 이름이 떠오른다.",
-    image: null,
-    choices: [
-      {
-        label: "사진을 찍어두고 떠난다",
-        next: "route_hub",
-        requires: null,
-        setFlags: { flag_info_phone: true }
-      },
-      {
-        label: "서류함을 뒤져 더 많은 단서를 찾는다",
-        next: "infil_docs",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "infil_docs",
-    type: "scene",
-    text:
-      "서류함에는 ‘가사 조정 합의서’ 초안이 끼워져 있다.\n" +
-      "회장 배우자의 이름과 A사 직함이 또렷하게 적혀 있다.\n\n" +
-      "회사 싸움인 줄 알았던 일이, 누군가의 집안 싸움과 겹쳐진다.",
-    image: null,
-    choices: [
-      {
-        label: "문건을 찍어두고 조용히 철수한다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_info_mail: true,
-          flag_route_infil_cleared: true
-        }
-      },
-      {
-        label: "이 정보만으로도 서버를 더 깊이 찔러본다",
-        next: "mid_access_server",
-        requires: null,
-        setFlags: {
-          flag_info_mail: true,
-          flag_route_infil_cleared: true
-        }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 납치·심문 루트
-  // ──────────────────────
-  {
-    id: "kidnap_intro",
-    type: "scene",
-    text:
-      "야간 버스 정류장.\n" +
-      "B사 ID 카드를 목에 건 인사팀 직원이 피곤한 얼굴로 서 있다.\n" +
-      "이런 인간이 가장 많은 걸 알고 있으면서도, 가장 약하다.",
-    image: null,
-    choices: [
-      {
-        label: "뒤에서 덮쳐 골목으로 끌고 들어간다 (강경)",
-        next: "qte_kidnap_grab",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "“담배 한 개비 빌릴 수 있냐”고 말을 걸며 자연스럽게 파고든다",
-        next: "qte_kidnap_soft",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  {
-    id: "qte_kidnap_grab",
-    type: "qte",
-    text:
-      "정류장 CCTV 사각지대를 정확히 맞춰야 한다.\n" +
-      "타이밍을 놓치면 그대로 신고다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["down", "left", "right"],
-      baseTimeLimit: 2500,
-      targetCount: 2,
-      successNext: "kidnap_hard_success",
-      failNext: "kidnap_hard_fail"
-    }
-  },
-  {
-    id: "kidnap_hard_success",
-    type: "scene",
-    text:
-      "직원의 입과 눈을 막은 채 골목으로 끌고 들어간다.\n" +
-      "몇 번의 위협 끝에 그가 토해낸 이름은… A사 간부의 이름이다.\n" +
-      "“회장님이랑… 그 사람이… 예전에….”",
-    image: null,
-    choices: [
-      {
-        label: "주소와 더러운 뒷얘기까지 캐낸다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_kidnap_cleared: true,
-          flag_info_phone: true,
-          flag_crime_exposed: true
-        }
-      }
-    ]
-  },
-  {
-    id: "kidnap_hard_fail",
-    type: "scene",
-    text:
-      "직원이 비명을 지르며 몸부림친다.\n" +
-      "근처에서 누군가 휴대폰을 꺼내는 소리가 들린다.\n" +
-      "멀리서 경광등 소리가 들려오는 것 같다.",
-    image: null,
-    choices: [
-      {
-        label: "손을 떼고 골목을 빠져나간다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_kidnap_locked: true,
-          flag_crime_exposed: true
-        }
-      }
-    ]
-  },
-
-  {
-    id: "qte_kidnap_soft",
-    type: "qte",
-    text:
-      "대화의 리듬을 맞춘다.\n" +
-      "그가 의심하기 전에 자연스럽게 회장 이야기를 꺼내야 한다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 5000,
-      baseTarget: 13,
-      successNext: "kidnap_soft_success",
-      failNext: "kidnap_soft_fail"
-    }
-  },
-  {
-    id: "kidnap_soft_success",
-    type: "scene",
-    text:
-      "그는 한숨을 쉬며 말한다.\n" +
-      "“회장님 사생활이 좀 복잡하긴 하죠… 예전에 A사 쪽이랑…”\n" +
-      "술김에 내뱉은 말이라지만, 퍼즐 조각은 또 하나 모인다.",
-    image: null,
-    choices: [
-      {
-        label: "더 묻지 않고, 이 정도 정보만 챙겨 떠난다",
-        next: "route_hub",
-        requires: null,
-        setFlags: {
-          flag_route_kidnap_cleared: true,
-          flag_info_mail: true
-        }
-      }
-    ]
-  },
-  {
-    id: "kidnap_soft_fail",
-    type: "scene",
-    text:
-      "그는 얼굴을 찡그리며 한 발 물러선다.\n" +
-      "“죄송한데, 이런 얘기 불편하네요.”\n" +
-      "조금 뒤, 그가 휴대폰으로 누군가에게 전화를 건다.",
-    image: null,
-    choices: [
-      {
-        label: "역효과다. 더 엮이면 안 된다",
-        next: "route_hub",
-        requires: null,
-        setFlags: { flag_route_kidnap_locked: true }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 모든 루트 실패 BAD END
-  // ──────────────────────
-  {
-    id: "bad_all_routes_failed",
-    type: "scene",
-    text:
-      "해킹은 막혔고, 잠입은 들켰고,\n" +
-      "사람 하나 붙잡아보는 것마저 역효과였다.\n\n" +
-      "손에 쥔 건 아무 것도 없고, 시간만 흘렀다.",
-    image: null,
-    choices: [
-      {
-        label: "계약은 실패했다…",
-        next: "end_bad_contract_fail",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "end_bad_contract_fail",
-    type: "scene",
-    text:
-      "기업 A는 아무 말 없이 연락을 끊었다.\n" +
-      "병원비 고지서는 계속 쌓여간다.\n\n" +
-      "이번 판에서, 넌 아무 것도 지키지 못했다.",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 중반: 서버 심층 접근 & B 용병 접촉
-  // ──────────────────────
-  {
-    id: "mid_access_server",
-    type: "scene",
-    text:
-      "모아둔 조각들을 이어 붙이자,\n" +
-      "B사 중앙 서버의 정확한 주소와 포트가 떠오른다.\n\n" +
-      "이제, 회사의 심장부를 직접 찌를 차례다.",
-    image: null,
-    choices: [
-      {
-        label: "임원 메일 서버를 집중적으로 훑어본다",
-        next: "qte_mid_mail_breach",
-        requires: null
-      },
-      {
-        label: "임원용 메신저 로그를 파고든다",
-        next: "qte_mid_chat_breach",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "qte_mid_mail_breach",
-    type: "qte",
-    text:
-      "패킷 사이로 누군가의 눈길 같은 게 느껴진다.\n" +
-      "누군가 너를 역추적하고 있다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["up", "down", "left", "right"],
-      baseTimeLimit: 3000,
-      targetCount: 2,
-      successNext: "mid_mail_success",
-      failNext: "mid_mail_fail"
-    }
-  },
-  {
-    id: "mid_mail_success",
-    type: "scene",
-    text:
-      "메일 한 묶음이 열리며,\n" +
-      "회장과 A사 간부 사이의 오래된 메일 쓰레드가 드러난다.\n" +
-      "비즈니스 보고라기보다, 거의 부부싸움에 가까운 감정의 폭발이다.",
-    image: null,
-    choices: [
-      {
-        label: "둘의 감정사를 대략 짐작하며 로그를 저장한다",
-        next: "mid_b_merc_contact",
-        requires: null,
-        setFlags: { flag_info_mail: true }
-      }
-    ]
-  },
-  {
-    id: "mid_mail_fail",
-    type: "scene",
-    text:
-      "화면이 검게 깜빡이고, 시스템 메시지가 뜬다.\n" +
-      "`침입자 탐지 – 연결 종료`\n\n" +
-      "누군가 네 IP를 따라오고 있을지도 모른다.",
-    image: null,
-    choices: [
-      {
-        label: "케이블을 뽑고 숨을 죽인다",
-        next: "mid_b_merc_contact",
-        requires: null,
-        setFlags: { flag_crime_exposed: true }
-      }
-    ]
-  },
-
-  {
-    id: "qte_mid_chat_breach",
-    type: "qte",
-    text:
-      "실시간으로 오가는 채팅창 사이를 헤집는다.\n" +
-      "잘못 건드리면, 네 패킷이 대화창에 그대로 찍힌다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 4500,
-      baseTarget: 15,
-      successNext: "mid_chat_success",
-      failNext: "mid_chat_fail"
-    }
-  },
-  {
-    id: "mid_chat_success",
-    type: "scene",
-    text:
-      "‘내가 그런 식으로 회사 운영하라고 했어?’\n" +
-      "‘우리는 직원들 삶도 책임져야 한다고 했잖아.’\n\n" +
-      "A사 간부 ID와 회장 ID가 서로를 비난하는 대화가 보인다.\n" +
-      "비즈니스가 아니라, 오래된 관계의 균열처럼 보인다.",
-    image: null,
-    choices: [
-      {
-        label: "로그를 캡쳐하고 연결을 끊는다",
-        next: "mid_b_merc_contact",
-        requires: null,
-        setFlags: { flag_info_mail: true }
-      }
-    ]
-  },
-  {
-    id: "mid_chat_fail",
-    type: "scene",
-    text:
-      "채팅창에 정체불명의 문자열이 찍힌다.\n" +
-      "곧바로 ‘누구야?’라는 메시지가 따라온다.\n" +
-      "그 직후, 연결이 강제로 끊긴다.",
-    image: null,
-    choices: [
-      {
-        label: "망했다. 이건 들켰다",
-        next: "mid_b_merc_contact",
-        requires: null,
-        setFlags: { flag_crime_exposed: true }
-      }
-    ]
-  },
-
-  {
-    id: "mid_b_merc_contact",
-    type: "scene",
-    text:
-      "이어폰에서 낯선 목소리가 들린다.\n" +
-      "“너, 여기서 뭐 하는지 알아.”\n" +
-      "“이 라인을 계속 쓰면, 네 가족 사진부터 털릴 거다.”\n\n" +
-      "목소리는 정확히 네가 뭘 하고 있었는지 읊는다. B사 용병이다.",
-    image: null,
-    choices: [
-      {
-        label: "“너희 회장이 뭘 숨기는지 알게 되면 말이 달라질 거다.”",
-        next: "mid_b_merc_argue",
-        requires: null
-      },
-      {
-        label: "통신을 끊고 현장 쪽 루트에 집중한다",
-        next: "pre_final_infil",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "mid_b_merc_argue",
-    type: "scene",
-    text:
-      "“숨기는 건 어느 쪽인데?”\n" +
-      "“네 고용주, A사 간부. 그 인간이 우리 회장의 배우자였어.”\n" +
-      "“넌 지금, 그 인간의 질투와 복수심을 대신 처리하는 도구야.”\n\n" +
-      "목소리는 차갑지만, 분노보다 피로가 묻어 있다.",
-    image: null,
-    choices: [
-      {
-        label: "“그래도 내 가족은 지켜야 해.”",
-        next: "pre_final_infil",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "“…그래서 너희는 방어만 한다는 거냐.”",
-        next: "pre_final_infil",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 최종 침입
-  // ──────────────────────
-  {
-    id: "pre_final_infil",
-    type: "scene",
-    text:
-      "모아진 단서들은 하나의 좌표를 가리킨다.\n" +
-      "B사 별관 47층, 개인 금고.\n\n" +
-      "거기에 회장의 치부와, A사 간부의 사적인 칼날이 함께 잠들어 있다.",
-    image: null,
-    choices: [
-      {
-        label: "엘리베이터를 해킹해 47층까지 직행한다",
-        next: "qte_final_elevator",
-        requires: null
-      },
-      {
-        label: "계단을 이용해 경비를 피해 올라간다",
-        next: "qte_final_stairs",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "qte_final_elevator",
-    type: "qte",
-    text:
-      "엘리베이터 패널이 빨갛게 깜빡인다.\n" +
-      "접근권한을 위조하지 못하면, 1층 보안실로 직행이다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 4000,
-      baseTarget: 15,
-      successNext: "final_elevator_success",
-      failNext: "final_elevator_fail"
-    }
-  },
-  {
-    id: "final_elevator_success",
-    type: "scene",
-    text:
-      "엘리베이터 문이 조용히 닫히고,\n" +
-      "47층 숫자가 불이 들어온다.\n" +
-      "이 위에, 네가 찾던 모든 답이 있다.",
-    image: null,
-    choices: [
-      {
-        label: "금고층 복도로 나선다",
-        next: "final_b_merc_confront",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "final_elevator_fail",
-    type: "scene",
-    text:
-      "엘리베이터가 1층 보안실로 내려가기 시작한다.\n" +
-      "이대로면 구속이다.",
-    image: null,
-    choices: [
-      {
-        label: "비상 정지 레버를 강제로 당겨 버린다",
-        next: "final_elevator_brake",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "final_elevator_brake",
-    type: "scene",
-    text:
-      "경보음과 함께 엘리베이터가 급정지한다.\n" +
-      "그 사이를 틈타, 너는 위층으로 향하는 계단을 향해 달린다.",
-    image: null,
-    choices: [
-      {
-        label: "계단을 통해 47층까지 올라간다",
-        next: "qte_final_stairs",
-        requires: null,
-        setFlags: { flag_crime_exposed: true }
-      }
-    ]
-  },
-
-  {
-    id: "qte_final_stairs",
-    type: "qte",
-    text:
-      "계단참마다 보안 카메라와 센서가 있다.\n" +
-      "숨이 차오르는 와중에도, 정확한 타이밍을 놓치면 안 된다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["up", "left", "right"],
-      baseTimeLimit: 4500,
-      targetCount: 3,
-      successNext: "final_stairs_success",
-      failNext: "final_stairs_fail"
-    }
-  },
-  {
-    id: "final_stairs_success",
-    type: "scene",
-    text:
-      "숨이 목구멍을 태우는 느낌과 함께,\n" +
-      "드디어 47층 출입문 앞에 선다.",
-    image: null,
-    choices: [
-      {
-        label: "문을 열고 복도 안으로 들어간다",
-        next: "final_b_merc_confront",
-        requires: null
-      }
-    ]
-  },
-  {
-    id: "final_stairs_fail",
-    type: "scene",
-    text:
-      "한 번의 실수.\n" +
-      "센서가 붉게 빛나고, 경보음이 울린다.\n" +
-      "더 이상 숨을 곳이 없다.",
-    image: null,
-    choices: [
-      {
-        label: "마지막 힘을 짜내어 문을 부수고 안으로 돌입한다",
-        next: "final_b_merc_confront",
-        requires: null,
-        setFlags: { flag_crime_exposed: true }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 최종 대치 + 3단 QTE
-  // ──────────────────────
-  {
-    id: "final_b_merc_confront",
-    type: "scene",
-    text:
-      "금고실 앞 복도.\n" +
-      "B사 용병이 벽에 기대 서 있다.\n\n" +
-      "“여기까지 왔으면, 이젠 말로는 안 되겠지.”\n" +
-      "“하지만 기억해. 네가 지키려는 가족 수랑, 내가 지키려는 가족 수가 얼마나 다른지.”",
-    image: null,
-    choices: [
-      {
-        label: "“그냥 비켜. 이건 나랑 네 회장 문제야.”",
-        next: "qte_final_round1",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "“그래도, 여기서 물러날 수는 없어.”",
-        next: "qte_final_round1",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  {
-    id: "qte_final_round1",
-    type: "qte",
-    text:
-      "그는 곧장 달려들지 않는다.\n" +
-      "비살상용 곤봉을 빙글 돌리며, 너를 벽 쪽으로 몰아붙인다.",
-    image: null,
-    qte: {
-      qteType: "direction",
-      directions: ["left", "right", "up", "down"],
-      baseTimeLimit: 3000,
-      targetCount: 2,
-      successNext: "final_round1_success",
-      failNext: null,
-      deathNext: "final_death"
-    }
-  },
-  {
-    id: "final_round1_success",
-    type: "scene",
-    text:
-      "몇 번의 휘두름을 간신히 피하자,\n" +
-      "그의 호흡도 조금 거칠어진다.\n" +
-      "“네가 이렇게까지 할 줄은 몰랐네.”",
-    image: null,
-    choices: [
-      {
-        label: "숨 돌릴 틈 없이 붙는다",
-        next: "qte_final_round2",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "qte_final_round2",
-    type: "qte",
-    text:
-      "이번엔 정면으로 몸을 던져온다.\n" +
-      "팔과 팔이 엉키고, 바닥에 굴러 떨어진다.\n" +
-      "누가 위로 올라탈지가 모든 걸 가른다.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 4500,
-      baseTarget: 16,
-      successNext: "final_round2_success",
-      failNext: null,
-      deathNext: "final_death"
-    }
-  },
-  {
-    id: "final_round2_success",
-    type: "scene",
-    text:
-      "간신히 그의 팔을 비트는 데 성공한다.\n" +
-      "그는 이를 악물고 말한다.\n\n" +
-      "“네 고용주, A사 간부. 그 인간이 내 상관의 배우자였어.”\n" +
-      "“네가 지금 부수려는 건… 그냥 회장이 아니라, 한 집안 전체야.”",
-    image: null,
-    choices: [
-      {
-        label: "“나도 집안 하나는 지켜야 해.”",
-        next: "qte_final_round3",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "“…그래서 넌 죽이지 않으려 했던 거냐.”",
-        next: "qte_final_round3",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  {
-    id: "qte_final_round3",
-    type: "qte",
-    text:
-      "마지막 일격의 순간.\n" +
-      "너의 주먹이 먼저 닿을지,\n" +
-      "그의 전기 충격봉이 먼저 닿을지.",
-    image: null,
-    qte: {
-      qteType: "mash",
-      key: "z",
-      baseTimeLimit: 3500,
-      baseTarget: 14,
-      successNext: "final_round3_success",
-      failNext: null,
-      deathNext: "final_death"
-    }
-  },
-  {
-    id: "final_round3_success",
-    type: "scene",
-    text:
-      "그의 몸에서 힘이 빠져나간다.\n" +
-      "네가 원한다면, 지금 여기서 끝낼 수 있다.\n" +
-      "아니면, 그냥 기절만 시킬 수도 있다.",
-    image: null,
-    choices: [
-      {
-        label: "목을 꺾어 확실히 끝낸다",
-        next: "final_choice_after_kill",
-        requires: null,
-        setFlags: { style_aggressive: true }
-      },
-      {
-        label: "호흡만 남겨두고 기절만 시킨다",
-        next: "final_choice_after_knockout",
-        requires: null,
-        setFlags: { style_empathy: true }
-      }
-    ]
-  },
-
-  {
-  id: "wounded_continue",
-  type: "scene",
-  text:
-    "잠깐의 빈틈 때문에 치명상은 피했지만,\n" +
-    "몸 곳곳이 멍들고 저려온다.",
-  image: null,
-  choices: [
-    {
-      label: "이를 악물고 다시 맞선다",
-      next: "final_b_merc_confront",
-      requires: null
-    }
-  ]
-},
-
-
-  {
-    id: "final_death",
-    type: "death",
-    text:
-      "한순간의 빈틈.\n" +
-      "전기 충격이 척추를 타고 올라온다.\n" +
-      "팔과 다리가 동시에 굳어버린다.\n\n" +
-      "시야가 검게 말려들어가기 직전,\n" +
-      "떠오르는 얼굴이 둘 있다.\n" +
-      "“미안… 내 딸… 자기…”",
-    image: null,
-    choices: []
-  },
-
-  // ──────────────────────
-  // 엔딩 분기용 체크 씬
-  // ──────────────────────
-  {
-    id: "final_choice_after_kill",
-    type: "scene",
-    text:
-      "그의 목에서 짧은 소리가 나고,\n" +
-      "몸이 축 늘어진다.\n" +
-      "복도에는 너와 시체, 그리고 닫힌 금고 문뿐이다.",
-    image: null,
-    choices: [
-      {
-        label: "문건을 챙겨 A사에게 넘긴다",
-        next: "ending_A_or_D_check",
-        requires: null,
-        setFlags: { flag_chose_document: true }
-      }
-    ]
-  },
-
-  {
-    id: "final_choice_after_knockout",
-    type: "scene",
-    text:
-      "그는 깊은 숨을 몰아쉬며 쓰러져 있다.\n" +
-      "생사는 붙어 있지만, 당분간 일어날 수는 없다.\n" +
-      "금고는 여전히 네 손이 닿을 곳에 있다.",
-    image: null,
-    choices: [
-      {
-        label: "문건을 확보해 두 기업의 내막을 세상에 폭로한다",
-        next: "ending_B_or_D_check",
-        requires: null,
-        setFlags: {
-          flag_chose_whistle: true,
-          style_empathy: true
-        }
-      },
-      {
-        label: "아무 것도 가져가지 않고, 그냥 떠난다",
-        next: "ending_C_or_D_check",
-        requires: null,
-        setFlags: {
-          flag_chose_nothing: true,
-          style_empathy: true
-        }
-      }
-    ]
-  },
-
-  {
-    id: "ending_A_or_D_check",
-    type: "scene",
-    text:
-      "문건을 손에 쥔 채, 너는 건물 밖으로 향한다.\n" +
-      "어딘가에서 싸이렌 소리가 들려오는 것 같다.",
-    image: null,
-    choices: [
-      {
-        label: "걸음을 재촉한다",
-        next: "ending_A",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", not: true }
-          ]
-        }
-      },
-      {
-        label: "뒤를 돌아본다",
-        next: "ending_D",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", value: true }
-          ]
-        }
-      }
-    ]
-  },
-
-  {
-    id: "ending_B_or_D_check",
-    type: "scene",
-    text:
-      "문건 내용은 회장의 치정과,\n" +
-      "그걸 칼날처럼 이용하려 했던 A사 간부의 사적인 메모들로 가득하다.",
-    image: null,
-    choices: [
-      {
-        label: "내부고발자로서 이 모든 걸 제출한다",
-        next: "ending_B",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", not: true }
-          ]
-        }
-      },
-      {
-        label: "이미 너무 많은 눈에 띄었다",
-        next: "ending_D",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", value: true }
-          ]
-        }
-      }
-    ]
-  },
-
-  {
-    id: "ending_C_or_D_check",
-    type: "scene",
-    text:
-      "너는 금고를 닫고, 아무 것도 가져가지 않는다.\n" +
-      "복수도, 정의도, 어느 쪽에도 서지 않은 채.",
-    image: null,
-    choices: [
-      {
-        label: "조용히 건물을 빠져나간다",
-        next: "ending_C",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", not: true }
-          ]
-        }
-      },
-      {
-        label: "그러기엔 이미 너무 늦었다",
-        next: "ending_D",
-        requires: {
-          flags: [
-            { key: "flag_crime_exposed", value: true }
-          ]
-        }
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 엔딩 A/B/C/D
-  // ──────────────────────
-  {
-    id: "ending_A",
-    type: "scene",
-    text:
-      "문건이 A사 회의실 테이블 위에 놓인다.\n" +
-      "그 뒤로, B사 주가 폭락과 구조조정 뉴스가 연달아 쏟아진다.\n\n" +
-      "해고된 수천 명의 얼굴이 스쳐지나간다.\n" +
-      "네 가족의 병원비는 계속 지급된다.\n\n" +
-      "“내 가족은 살았지만… 몇 천 가족은 무너졌군.”",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "ending_B",
-    type: "scene",
-    text:
-      "너와 B사 용병의 증언, 그리고 문건 일부가\n" +
-      "검찰 조사실 책상 위에 놓인다.\n\n" +
-      "A사 간부는 직무유기와 보복성 업무 남용으로 구속되고,\n" +
-      "B사는 구조조정 없이 재편을 약속한다.\n" +
-      "정부는 퇴직·의료 지원 프로그램을 내놓는다.\n\n" +
-      "용병은 마지막으로 말한다.\n" +
-      "“넌, 우리도 네 가족도 지켰다.”",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "ending_C",
-    type: "scene",
-    text:
-      "너는 아무에게도 문건을 넘기지 않는다.\n" +
-      "두 기업은 각자의 방식대로 버틴다.\n\n" +
-      "병원비 고지서는 여전히 무겁게 쌓여가고,\n" +
-      "네 가족은 벼랑 끝에 서 있다.\n\n" +
-      "“…이 싸움에, 내 가족을 더 이상 태울 순 없었어.”",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-
-  {
-    id: "ending_D",
-    type: "scene",
-    text:
-      "건물 밖, 경찰차와 순찰차가 원을 그린다.\n" +
-      "싸이렌 불빛이 너의 그림자를 길게 끌어낸다.\n\n" +
-      "너는 뒷골목으로 몸을 던진다.\n\n" +
-      "‘어디까지 도망쳐야 할까?\n" +
-      "  어쩌다가 이렇게 된 걸까?\n" +
-      "  가족들에게… 돌아갈 순 있을까?’",
-    image: null,
-    choices: [
-      {
-        label: "처음으로 돌아가기",
-        next: "__restart__",
-        requires: null
-      }
-    ]
-  },
-
-  // ──────────────────────
-  // 공통 데스
-  // ──────────────────────
-  {
-    id: "death_generic",
-    type: "death",
-    text:
-      "너의 의식은 어둠 속으로 가라앉았다.\n\n" +
-      "너무 많은 상처를 입었고,\n" +
-      "이번 판에서, 네 가족에게 돌아갈 길은 끊겼다.",
-    image: null,
-    choices: []
+function loadScenesFromStorage() {
+  var raw = localStorage.getItem(SCENES_KEY);
+  if (!raw) {
+    SCENES = [];
+    return;
   }
-];
-
-
-function findScene(id) {
-  for (var i = 0; i < SCENES.length; i++) {
-    if (SCENES[i].id === id) {
-      return SCENES[i];
+  try {
+    var parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      SCENES = parsed;
+    } else {
+      SCENES = [];
     }
+  } catch (e) {
+    console.error("씬 로드 실패:", e);
+    SCENES = [];
+  }
+}
+
+function saveScenesToStorage() {
+  try {
+    localStorage.setItem(SCENES_KEY, JSON.stringify(SCENES));
+  } catch (e) {
+    console.error("씬 저장 실패:", e);
+  }
+}
+
+function saveGame() {
+  var data = {
+    currentSceneId: state.currentSceneId,
+    player: state.player,
+    meters: state.meters,
+    flags: state.flags,
+    runActive: state.runActive,
+    settings: state.settings
+  };
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("세이브 실패:", e);
+  }
+}
+
+function loadGameFromStorage() {
+  var raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return false;
+
+  try {
+    var data = JSON.parse(raw);
+    state.currentSceneId = data.currentSceneId || null;
+    state.player = data.player || state.player;
+    state.meters = data.meters || {};
+    state.flags = data.flags || {};
+    state.runActive = !!data.runActive;
+    state.settings = data.settings || state.settings;
+
+    applySettingsToDOM();
+    updatePlayerStatusUI();
+
+    if (state.currentSceneId) {
+      loadScene(state.currentSceneId);
+    }
+    return true;
+  } catch (e) {
+    console.error("로드 실패:", e);
+    return false;
+  }
+}
+
+function restartGame() {
+  state.currentSceneId = null;
+  state.player = {
+    name: "",
+    stats: { agi: 3, wis: 3, vit: 3 },
+    failures: 0
+  };
+  state.meters = {};
+  state.flags = {};
+  state.runActive = false;
+
+  updatePlayerStatusUI();
+  clearSceneUI();
+  var startScreen = document.getElementById("start-screen");
+  if (startScreen) startScreen.classList.remove("hidden");
+}
+
+// ──────────────────────
+// 유틸: 씬 / 효과 / 조건
+// ──────────────────────
+function findScene(id) {
+  if (!id) return null;
+  for (var i = 0; i < SCENES.length; i++) {
+    if (SCENES[i].id === id) return SCENES[i];
   }
   return null;
 }
 
-function initGame() {
-  loadSettings();
-  applySettingsUI();
-  setupEventListeners();
-  renderScene(findScene("start"));
-  updatePlayerStatusUI();
-}
+function applyEffects(effects) {
+  if (!effects) return;
 
-function setupEventListeners() {
-  var startScreen = document.getElementById("start-screen");
-  startScreen.addEventListener("click", function() {
-    startScreen.classList.add("hidden");
-    state.currentSceneId = "char_create";
-    loadScene("char_create");
-  });
-
-  document.getElementById("btn-settings").addEventListener("click", function() {
-    openSettings();
-  });
-
-  document.getElementById("btn-settings-close").addEventListener("click", function() {
-    closeSettings();
-  });
-
-  document.getElementById("btn-setting-save").addEventListener("click", function() {
-    saveGame();
-  });
-
-  document.getElementById("btn-setting-load").addEventListener("click", function() {
-    if (state.isDead) {
-      restartGame();
-    } else {
-      loadGame();
-    }
-  });
-
-  document.getElementById("btn-setting-restart").addEventListener("click", function() {
-    restartGame();
-  });
-
-  document.getElementById("setting-text-speed").addEventListener("change", function(e) {
-    state.settings.textSpeed = e.target.value;
-    saveSettings();
-  });
-
-  document.getElementById("setting-font-size").addEventListener("change", function(e) {
-    state.settings.fontSize = e.target.value;
-    applySettingsUI();
-    saveSettings();
-  });
-
-  document.getElementById("setting-mute").addEventListener("change", function(e) {
-    state.settings.mute = e.target.checked;
-    saveSettings();
-  });
-
-  document.getElementById("setting-qte-difficulty").addEventListener("change", function(e) {
-    state.settings.qteDifficulty = e.target.value;
-    saveSettings();
-  });
-
-  window.addEventListener("keydown", handleQTEKeydown);
-}
-
-function openSettings() {
-  var saveBtn = document.getElementById("btn-setting-save");
-  var loadBtn = document.getElementById("btn-setting-load");
-
-  if (state.runActive && !state.isDead) {
-    saveBtn.disabled = false;
-  } else {
-    saveBtn.disabled = true;
-  }
-
-  var saveData = localStorage.getItem("saveData");
-  if (saveData) {
-    loadBtn.disabled = false;
-  } else {
-    loadBtn.disabled = true;
-  }
-
-  document.getElementById("settings-overlay").classList.remove("hidden");
-}
-
-function closeSettings() {
-  document.getElementById("settings-overlay").classList.add("hidden");
-}
-
-function loadScene(id) {
-  state.currentSceneId = id;
-  var scene = findScene(id);
-  if (scene) {
-    renderScene(scene);
-  }
-}
-
-function renderScene(scene) {
-  if (!scene) return;
-
-  switch (scene.type) {
-    case "start":
-      renderStartScene(scene);
-      break;
-    case "charCreate":
-      renderCharCreateScene(scene);
-      break;
-    case "scene":
-      // id가 check_death 이거나 deathNext/woundedNext가 있으면 데스 체크용 씬으로 취급
-      if (scene.id === "check_death" || scene.deathNext || scene.woundedNext) {
-        checkAndHandleDeath(scene);
-      } else {
-        renderNormalScene(scene);
+  // stats: delta
+  if (effects.stats) {
+    for (var s in effects.stats) {
+      if (!state.player.stats.hasOwnProperty(s)) {
+        state.player.stats[s] = 0;
       }
-      break;
-    case "qte":
-      startQTE(scene);
-      break;
-    case "death":
-      renderDeathScene(scene);
-      break;
+      state.player.stats[s] += effects.stats[s];
+    }
+  }
+
+  // setStats: 절대값
+  if (effects.setStats) {
+    for (var ss in effects.setStats) {
+      state.player.stats[ss] = effects.setStats[ss];
+    }
+  }
+
+  // meters: delta
+  if (effects.meters) {
+    for (var m in effects.meters) {
+      if (!state.meters.hasOwnProperty(m)) {
+        state.meters[m] = 0;
+      }
+      state.meters[m] += effects.meters[m];
+    }
+  }
+
+  // setMeters: 절대값
+  if (effects.setMeters) {
+    for (var sm in effects.setMeters) {
+      state.meters[sm] = effects.setMeters[sm];
+    }
+  }
+
+  // flags: 단순 대입
+  if (effects.flags) {
+    for (var f in effects.flags) {
+      state.flags[f] = effects.flags[f];
+    }
+  }
+
+  // failures delta
+  if (typeof effects.failures === "number") {
+    state.player.failures += effects.failures;
+    if (state.player.failures < 0) state.player.failures = 0;
   }
 
   updatePlayerStatusUI();
 }
 
-function renderStartScene(scene) {
+function compareNumber(a, op, b) {
+  if (op === ">") return a > b;
+  if (op === "<") return a < b;
+  if (op === ">=") return a >= b;
+  if (op === "<=") return a <= b;
+  if (op === "==") return a === b;
+  if (op === "!=") return a !== b;
+  return true;
+}
+
+function checkConditions(conditions) {
+  if (!conditions || conditions.length === 0) return true;
+
+  for (var i = 0; i < conditions.length; i++) {
+    var c = conditions[i];
+    if (c.type === "flag") {
+      var fv = !!state.flags[c.key];
+      var want = (typeof c.value === "undefined") ? true : c.value;
+      var ok = (fv === want);
+      if (c.not) ok = !ok;
+      if (!ok) return false;
+    } else if (c.type === "stat") {
+      var sv = state.player.stats[c.key] || 0;
+      if (!compareNumber(sv, c.op, c.value)) return false;
+    } else if (c.type === "meter") {
+      var mv = state.meters[c.key] || 0;
+      if (!compareNumber(mv, c.op, c.value)) return false;
+    }
+  }
+  return true;
+}
+
+// ──────────────────────
+// 씬 로딩 / 렌더링
+// ──────────────────────
+function clearSceneUI() {
   document.getElementById("scene-image").innerHTML = "";
   document.getElementById("scene-text").textContent = "";
   document.getElementById("scene-choices").innerHTML = "";
 }
 
+function displayText(text) {
+  var textEl = document.getElementById("scene-text");
+  if (!textEl) return;
+
+  if (textDisplayTimer) {
+    clearInterval(textDisplayTimer);
+    textDisplayTimer = null;
+  }
+
+  var speedMap = {
+    slow: 60,
+    normal: 35,
+    fast: 15
+  };
+  var delay = speedMap[state.settings.textSpeed] || 35;
+
+  var i = 0;
+  textEl.textContent = "";
+  var chars = (text || "").split("");
+
+  textDisplayTimer = setInterval(function () {
+    if (i >= chars.length) {
+      clearInterval(textDisplayTimer);
+      textDisplayTimer = null;
+      return;
+    }
+    textEl.textContent += chars[i];
+    i++;
+  }, delay);
+}
+
+function updatePlayerStatusUI() {
+  var el = document.getElementById("player-status");
+  if (!el) return;
+
+  var name = state.player.name || "이름 없음";
+  var s = state.player.stats;
+  var parts = [];
+  parts.push(name);
+  parts.push("AGI " + s.agi);
+  parts.push("WIS " + s.wis);
+  parts.push("VIT " + s.vit);
+
+  var meterKeys = Object.keys(state.meters);
+  if (meterKeys.length > 0) {
+    var ms = meterKeys.map(function (k) {
+      return k + ":" + state.meters[k];
+    });
+    parts.push("[" + ms.join(", ") + "]");
+  }
+
+  el.textContent = parts.join(" | ");
+}
+
+function loadScene(id) {
+  var scene = findScene(id);
+  state.currentSceneId = id || null;
+
+  if (!scene) {
+    clearSceneUI();
+    updatePlayerStatusUI();
+    return;
+  }
+
+  // 씬 진입 효과
+  if (scene.onEnter && scene.onEnter.effects) {
+    applyEffects(scene.onEnter.effects);
+  }
+  // 즉시 점프
+  if (scene.onEnter && scene.onEnter.goto) {
+    loadScene(scene.onEnter.goto);
+    return;
+  }
+
+  renderScene(scene);
+}
+
+function renderScene(scene) {
+  if (!scene) return;
+
+  if (scene.type === "start") {
+    clearSceneUI();
+    // start-screen이 따로 있으니 여기서는 별도 처리 안 함
+  } else if (scene.type === "charCreate") {
+    renderCharCreateScene(scene);
+  } else if (scene.type === "qte") {
+    startQTEScene(scene);
+  } else {
+    renderNormalScene(scene);
+  }
+}
+
+// ──────────────────────
+// 캐릭터 생성
+// ──────────────────────
 function renderCharCreateScene(scene) {
   charCreateStats = { agi: 3, wis: 3, vit: 3, points: 6 };
 
-  document.getElementById("scene-image").innerHTML = "";
-  displayText(scene.text);
+  clearSceneUI();
+  displayText(scene.text || "");
 
   var choicesDiv = document.getElementById("scene-choices");
-  choicesDiv.innerHTML = "";
-
   var container = document.createElement("div");
   container.className = "char-create-container";
 
@@ -1592,6 +396,7 @@ function renderCharCreateScene(scene) {
     plusBtn.addEventListener("click", handleStatChange);
     row.appendChild(plusBtn);
 
+    row.appendChild(document.createElement("br"));
     container.appendChild(row);
   }
 
@@ -1606,10 +411,10 @@ function renderCharCreateScene(scene) {
   startBtn.id = "start-game-btn";
   startBtn.textContent = "시작하기";
   startBtn.disabled = true;
-  startBtn.addEventListener("click", function() {
+  startBtn.addEventListener("click", function () {
     var name = document.getElementById("char-name-input").value.trim();
     if (name === "") {
-      name = "이름없는 모험가";
+      name = "이름없는 용병";
     }
     state.player.name = name;
     state.player.stats.agi = charCreateStats.agi;
@@ -1617,8 +422,11 @@ function renderCharCreateScene(scene) {
     state.player.stats.vit = charCreateStats.vit;
     state.player.failures = 0;
     state.runActive = true;
-    state.isDead = false;
-    loadScene("intro_scene");
+
+    updatePlayerStatusUI();
+
+    var nextId = (scene.onStartNext || "intro");
+    loadScene(nextId);
   });
   container.appendChild(startBtn);
 
@@ -1636,7 +444,6 @@ function handleStatChange(e) {
       charCreateStats.points--;
     }
   } else if (action === "minus") {
-    // 최소 3까지
     if (charCreateStats[stat] > 3) {
       charCreateStats[stat]--;
       charCreateStats.points++;
@@ -1673,630 +480,1224 @@ function updateCharCreateUI() {
     var plusBtn = buttons[1];
     var statKey = minusBtn.getAttribute("data-stat");
 
-    // 3 이하면 마이너스 비활성화
     minusBtn.disabled = charCreateStats[statKey] <= 3;
-    plusBtn.disabled = charCreateStats.points <= 0 || charCreateStats[statKey] >= 10;
+    plusBtn.disabled =
+      charCreateStats.points <= 0 || charCreateStats[statKey] >= 10;
   }
 }
 
-/* ---- 선택지 요구조건 / 플래그 시스템 ---- */
-
-var STAT_DISPLAY_NAMES = { agi: "민첩", wis: "지혜", vit: "체력" };
-
-function evaluateChoiceRequirements(choice) {
-  var requires = choice.requires;
-  var hasRequirements = false;
-  var allMet = true;
-  var statInfos = [];
-
-  if (!requires) {
-    return { has: false, allMet: true, statInfos: [] };
-  }
-
-  // 새 형식: { stats: [...], flags: [...] }
-  if (requires.stats || requires.flags) {
-    var statsArray = requires.stats || [];
-    for (var i = 0; i < statsArray.length; i++) {
-      var cond = statsArray[i];
-      var key = cond.key;
-      var current = state.player.stats[key] || 0;
-      var name = STAT_DISPLAY_NAMES[key] || key;
-
-      var min = typeof cond.min === "number" ? cond.min : null;
-      var max = typeof cond.max === "number" ? cond.max : null;
-      var met = true;
-      var text = "";
-
-      if (min !== null && max !== null) {
-        text = name + " " + min + "~" + max;
-        met = (current >= min && current <= max);
-      } else if (min !== null) {
-        text = name + " ≥ " + min;
-        met = (current >= min);
-      } else if (max !== null) {
-        text = name + " ≤ " + max;
-        met = (current <= max);
-      } else {
-        continue;
-      }
-
-      statInfos.push({ text: text, met: met });
-      hasRequirements = true;
-      if (!met) allMet = false;
-    }
-
-    var flagsArray = requires.flags || [];
-    for (var j = 0; j < flagsArray.length; j++) {
-      var f = flagsArray[j];
-      var fKey = f.key;
-      var expected = (typeof f.value === "boolean") ? f.value : true;
-      var not = !!f.not;
-      var currentFlag = !!state.flags[fKey];
-
-      var flagMet = (!not && currentFlag === expected) || (not && currentFlag !== expected);
-      hasRequirements = true;
-      if (!flagMet) {
-        allMet = false;
-      }
-    }
-
-  } else {
-    // 기존 형식: { wis: 4 } → 스탯 ≥ 값
-    for (var statKey in requires) {
-      if (!requires.hasOwnProperty(statKey)) continue;
-      var value = requires[statKey];
-      if (typeof value !== "number") continue;
-
-      var cur = state.player.stats[statKey] || 0;
-      var nm = STAT_DISPLAY_NAMES[statKey] || statKey;
-      var ok = cur >= value;
-      var txt = nm + " ≥ " + value;
-
-      statInfos.push({ text: txt, met: ok });
-      hasRequirements = true;
-      if (!ok) allMet = false;
-    }
-  }
-
-  return { has: hasRequirements, allMet: allMet, statInfos: statInfos };
-}
-
+// ──────────────────────
+// 일반 씬 렌더링
+// ──────────────────────
 function renderNormalScene(scene) {
+  clearSceneUI();
+
   if (scene.image) {
-    document.getElementById("scene-image").innerHTML = '<img src="' + scene.image + '" alt="씬 이미지">';
-  } else {
-    document.getElementById("scene-image").innerHTML = "";
+    var imgDiv = document.getElementById("scene-image");
+    imgDiv.innerHTML = "";
+    var img = document.createElement("img");
+    img.src = scene.image;
+    imgDiv.appendChild(img);
   }
 
-  displayText(scene.text);
+  displayText(scene.text || "");
 
   var choicesDiv = document.getElementById("scene-choices");
   choicesDiv.innerHTML = "";
 
-  for (var i = 0; i < scene.choices.length; i++) {
-    var choice = scene.choices[i];
-
-    var wrapper = document.createElement("div");
-    wrapper.className = "choice-row";
-
+  var choices = scene.choices || [];
+  if (choices.length === 0) {
     var btn = document.createElement("button");
-    btn.textContent = choice.label;
+    btn.textContent = "계속";
+    btn.addEventListener("click", function () {});
+    choicesDiv.appendChild(btn);
+    return;
+  }
 
-    var reqInfo = evaluateChoiceRequirements(choice);
-    btn.disabled = !reqInfo.allMet;
+  for (var i = 0; i < choices.length; i++) {
+    (function (choice) {
+      if (choice.conditions && !checkConditions(choice.conditions)) {
+        return;
+      }
 
-    (function(c) {
-      btn.addEventListener("click", function() {
-        // 선택 효과로 플래그 설정
-        if (c.setFlags) {
-          for (var fk in c.setFlags) {
-            if (c.setFlags.hasOwnProperty(fk)) {
-              state.flags[fk] = c.setFlags[fk];
-            }
-          }
+      var btn = document.createElement("button");
+      btn.textContent = choice.label || "(선택지)";
+      btn.addEventListener("click", function () {
+        if (choice.effects) {
+          applyEffects(choice.effects);
         }
-        handleChoice(c);
+
+        var nextId = choice.next;
+        if (!nextId) return;
+
+        if (nextId === "__restart__") {
+          restartGame();
+        } else {
+          loadScene(nextId);
+        }
       });
-    })(choice);
-
-    wrapper.appendChild(btn);
-
-    // 요구 스탯 표시 (있을 때만)
-    if (reqInfo.has && reqInfo.statInfos.length > 0) {
-      var reqSpan = document.createElement("span");
-      reqSpan.className = "choice-requirements";
-
-      var parts = [];
-      for (var j = 0; j < reqInfo.statInfos.length; j++) {
-        var si = reqInfo.statInfos[j];
-        var cls = si.met ? "req-met" : "req-fail";
-        parts.push('<span class="' + cls + '">' + si.text + '</span>');
-      }
-      reqSpan.innerHTML = parts.join(" / ");
-      wrapper.appendChild(reqSpan);
-    }
-
-    choicesDiv.appendChild(wrapper);
+      choicesDiv.appendChild(btn);
+    })(choices[i]);
   }
 }
 
-function renderDeathScene(scene) {
-  state.isDead = true;
-  state.runActive = false;
+// ──────────────────────
+// QTE 처리
+// ──────────────────────
+function startQTEScene(scene) {
+  var cfg = scene.qte || {};
+  var type = cfg.qteType;
 
-  if (scene.image) {
-    document.getElementById("scene-image").innerHTML = '<img src="' + scene.image + '" alt="사망 이미지">';
-  } else {
-    document.getElementById("scene-image").innerHTML = "";
+  var diff = state.settings.qteDifficulty || "normal";
+  var timeMul = diff === "easy" ? 1.3 : diff === "hard" ? 0.75 : 1.0;
+  var baseTime = cfg.baseTimeLimit || 3000;
+
+  state.currentQTE.sceneId = scene.id;
+  state.currentQTE.successNext = cfg.successNext || null;
+  state.currentQTE.failNext = cfg.failNext || null;
+  state.currentQTE.successEffects = cfg.successEffects || null;
+  state.currentQTE.failEffects = cfg.failEffects || null;
+
+  state.currentQTE.timeLimit = Math.floor(baseTime * timeMul);
+  state.currentQTE.endTime = Date.now() + state.currentQTE.timeLimit;
+
+  if (state.currentQTE.timerId) {
+    clearInterval(state.currentQTE.timerId);
+    state.currentQTE.timerId = null;
   }
 
-  displayText(scene.text);
+  if (type === "direction") {
+    startDirectionQTE(cfg, scene.text || "");
+  } else if (type === "mash") {
+    startMashQTE(cfg, scene.text || "");
+  }
+}
 
-  var choicesDiv = document.getElementById("scene-choices");
-  choicesDiv.innerHTML = "";
+function startDirectionQTE(cfg, text) {
+  state.currentQTE.type = "direction";
+  state.currentQTE.overlayId = "qte-direction-overlay";
+  state.currentQTE.directions = cfg.directions || ["up", "down", "left", "right"];
+  state.currentQTE.targetCount = cfg.targetCount || 1;
+  state.currentQTE.currentCount = 0;
 
-  var btn = document.createElement("button");
-  btn.textContent = "처음으로 돌아가기";
-  btn.addEventListener("click", function() {
-    restartGame();
+  var overlay = document.getElementById("qte-direction-overlay");
+  var textEl = overlay.querySelector(".qte-text");
+  var bar = overlay.querySelector(".qte-timer-fill");
+  textEl.textContent = text;
+  bar.style.width = "100%";
+
+  overlay.classList.remove("hidden");
+
+  pickNextDirection();
+
+  state.currentQTE.timerId = setInterval(function () {
+    updateQTETimer(bar);
+  }, 50);
+
+  window.addEventListener("keydown", handleDirectionKeydown);
+  var btns = overlay.querySelectorAll(".dir-btn");
+  btns.forEach(function (b) {
+    b.addEventListener("click", handleDirectionButtonClick);
   });
-  choicesDiv.appendChild(btn);
 }
 
-function displayText(text) {
-  var textDiv = document.getElementById("scene-text");
-  var speed = state.settings.textSpeed;
+function pickNextDirection() {
+  var dirs = state.currentQTE.directions;
+  var target = dirs[Math.floor(Math.random() * dirs.length)];
+  state.currentQTE.targetDir = target;
 
-  if (textDisplayTimer) {
-    clearInterval(textDisplayTimer);
-    textDisplayTimer = null;
-  }
-
-  textDiv.style.fontSize = "";
-  
-  if (speed === "fast") {
-    textDiv.textContent = text;
-    adjustTextSize(textDiv);
-    return;
-  }
-
-  var delay = speed === "slow" ? 50 : 25;
-  textDiv.textContent = "";
-
-  var index = 0;
-  textDisplayTimer = setInterval(function() {
-    if (index < text.length) {
-      textDiv.textContent += text.charAt(index);
-      index++;
-      adjustTextSize(textDiv);
+  var overlay = document.getElementById("qte-direction-overlay");
+  var buttons = overlay.querySelectorAll(".dir-btn");
+  buttons.forEach(function (btn) {
+    if (btn.getAttribute("data-dir") === target) {
+      btn.classList.add("active");
     } else {
-      clearInterval(textDisplayTimer);
-      textDisplayTimer = null;
+      btn.classList.remove("active");
     }
-  }, delay);
-}
-
-function adjustTextSize(element) {
-  var baseFontSize = 16;
-  if (document.body.classList.contains("font-small")) {
-    baseFontSize = 14;
-  } else if (document.body.classList.contains("font-large")) {
-    baseFontSize = 20;
-  }
-  
-  element.style.fontSize = baseFontSize + "px";
-  
-  var minFontSize = 10;
-  var currentSize = baseFontSize;
-  
-  while (element.scrollHeight > element.clientHeight && currentSize > minFontSize) {
-    currentSize -= 1;
-    element.style.fontSize = currentSize + "px";
-  }
-}
-
-function handleChoice(choice) {
-  if (choice.next === "__restart__") {
-    restartGame();
-    return;
-  }
-
-  loadScene(choice.next);
-}
-
-function checkAndHandleDeath(scene) {
-  var deathNext = (scene && scene.deathNext) || "death_generic";
-  var woundedNext = (scene && scene.woundedNext) || "wounded_continue";
-
-  if (state.player.failures > state.player.stats.vit) {
-    loadScene(deathNext);
-  } else {
-    loadScene(woundedNext);
-  }
-}
-
-function updatePlayerStatusUI() {
-  var statusDiv = document.getElementById("player-status");
-  if (!state.runActive && !state.isDead) {
-    statusDiv.textContent = "이름: ??? | 민첩 ? | 지혜 ? | 체력 ? | 실패 ?/?";
-  } else {
-    var name = state.player.name || "???";
-    statusDiv.textContent = "이름: " + name + 
-      " | 민첩 " + state.player.stats.agi + 
-      " | 지혜 " + state.player.stats.wis + 
-      " | 체력 " + state.player.stats.vit + 
-      " | 실패 " + state.player.failures + "/" + state.player.stats.vit;
-  }
-}
-
-/* ---- QTE ---- */
-
-function startQTE(scene) {
-  var qte = scene.qte;
-  var difficultyMod = { easy: 1.5, normal: 1, hard: 0.5, difficult: 0.5 };
-  var difficulty = state.settings.qteDifficulty;
-  if (!difficultyMod[difficulty]) {
-    difficulty = "normal";
-  }
-
-  var baseLimit = qte.baseTimeLimit;
-  var timeLimit = baseLimit;
-
-  if (qte.qteType === "direction") {
-    // 방향 QTE: 지혜 1당 1초 추가
-    var wis = state.player.stats.wis || 0;
-    timeLimit = Math.round(baseLimit * difficultyMod[difficulty] + wis * 1000);
-  } else if (qte.qteType === "mash") {
-    // 연타 QTE: 시간은 난이도만 영향
-    timeLimit = Math.round(baseLimit * difficultyMod[difficulty]);
-  }
-
-  var targetCount = qte.targetCount || 1;
-
-  state.currentQTE = {
-    sceneId: scene.id,
-    type: qte.qteType,
-    timeLimit: timeLimit,
-    startedAt: Date.now(),
-    timerId: null,
-    targetDir: null,
-    mashKey: qte.key || "z",
-    mashTarget: 0,
-    mashCount: 0,
-    successNext: qte.successNext,
-    failNext: qte.failNext,
-    overlayId: null,
-    targetCount: targetCount,
-    currentCount: 0,
-    deathNext: qte.deathNext || "death_generic",
-    woundedNext: qte.woundedNext || qte.failNext || "wounded_continue",
-    directions: null
-  };
-
-  document.getElementById("btn-settings").disabled = true;
-
-  if (qte.qteType === "direction") {
-    var dirOverlay = document.getElementById("qte-direction-overlay");
-    state.currentQTE.overlayId = "qte-direction-overlay";
-    dirOverlay.classList.remove("hidden");
-
-    dirOverlay.querySelector(".qte-text").textContent = scene.text;
-
-    var dirs = qte.directions;
-    state.currentQTE.directions = dirs;
-
-    var targetDir = dirs[Math.floor(Math.random() * dirs.length)];
-    state.currentQTE.targetDir = targetDir;
-
-    var dirButtons = dirOverlay.querySelectorAll(".dir-btn");
-    for (var i = 0; i < dirButtons.length; i++) {
-      dirButtons[i].classList.remove("active");
-      if (dirButtons[i].getAttribute("data-dir") === targetDir) {
-        dirButtons[i].classList.add("active");
-      }
-    }
-
-    for (var j = 0; j < dirButtons.length; j++) {
-      (function(btn) {
-        btn.onclick = function() {
-          var dir = btn.getAttribute("data-dir");
-          resolveDirectionQTE(dir);
-        };
-      })(dirButtons[j]);
-    }
-
-    dirOverlay.querySelector(".qte-timer-fill").style.width = "100%";
-
-  } else if (qte.qteType === "mash") {
-    var mashOverlay = document.getElementById("qte-mash-overlay");
-    state.currentQTE.overlayId = "qte-mash-overlay";
-    mashOverlay.classList.remove("hidden");
-
-    mashOverlay.querySelector(".qte-text").textContent = scene.text;
-
-    // 연타 목표: baseTarget - 민첩 (최소 1)
-    var agi = state.player.stats.agi || 0;
-    var mashTarget = qte.baseTarget - agi;
-    if (mashTarget < 1) mashTarget = 1;
-
-    state.currentQTE.mashTarget = mashTarget;
-    state.currentQTE.mashCount = 0;
-
-    document.getElementById("qte-mash-target").textContent = mashTarget;
-    document.getElementById("qte-mash-count").textContent = "0";
-    document.getElementById("qte-mash-button").textContent = qte.key ? qte.key.toUpperCase() : "Z";
-
-    document.getElementById("qte-mash-button").onclick = function() {
-      incrementMash();
-    };
-
-    mashOverlay.querySelector(".qte-timer-fill").style.width = "100%";
-  }
-
-  state.currentQTE.timerId = requestAnimationFrame(function() {
-    updateQTETimer();
   });
 }
 
-function updateQTETimer() {
-  var qte = state.currentQTE;
-  if (!qte.sceneId || !qte.overlayId) return;
+function handleDirectionKeydown(e) {
+  var dir = null;
+  if (e.key === "ArrowUp") dir = "up";
+  else if (e.key === "ArrowDown") dir = "down";
+  else if (e.key === "ArrowLeft") dir = "left";
+  else if (e.key === "ArrowRight") dir = "right";
+  if (!dir) return;
+  checkDirectionInput(dir);
+}
 
-  var elapsed = Date.now() - qte.startedAt;
-  var remaining = Math.max(0, qte.timeLimit - elapsed);
-  var ratio = remaining / qte.timeLimit;
+function handleDirectionButtonClick(e) {
+  var dir = e.target.getAttribute("data-dir");
+  if (!dir) return;
+  checkDirectionInput(dir);
+}
 
-  var overlay = document.getElementById(qte.overlayId);
-  if (overlay) {
-    overlay.querySelector(".qte-timer-fill").style.width = (ratio * 100) + "%";
-  }
+function checkDirectionInput(dir) {
+  if (state.currentQTE.type !== "direction") return;
 
-  if (remaining <= 0) {
-    endQTE(false);
+  if (dir === state.currentQTE.targetDir) {
+    state.currentQTE.currentCount++;
+    if (state.currentQTE.currentCount >= state.currentQTE.targetCount) {
+      finishQTE(true);
+    } else {
+      pickNextDirection();
+    }
   } else {
-    qte.timerId = requestAnimationFrame(updateQTETimer);
+    finishQTE(false);
   }
 }
 
-function handleQTEKeydown(e) {
-  var qte = state.currentQTE;
-  if (!qte.sceneId) return;
+function startMashQTE(cfg, text) {
+  state.currentQTE.type = "mash";
+  state.currentQTE.overlayId = "qte-mash-overlay";
+  state.currentQTE.mashKey = (cfg.key || "z").toLowerCase();
 
-  if (qte.type === "direction") {
-    var dirMap = {
-      "ArrowUp": "up",
-      "ArrowDown": "down",
-      "ArrowLeft": "left",
-      "ArrowRight": "right"
-    };
-    if (dirMap[e.key]) {
-      e.preventDefault();
-      resolveDirectionQTE(dirMap[e.key]);
-    }
-  } else if (qte.type === "mash") {
-    if (e.key.toLowerCase() === qte.mashKey.toLowerCase()) {
-      e.preventDefault();
-      incrementMash();
-    }
+  var diff = state.settings.qteDifficulty || "normal";
+  var mul = diff === "easy" ? 0.8 : diff === "hard" ? 1.2 : 1.0;
+  var baseTarget = cfg.baseTarget || 10;
+
+  state.currentQTE.mashTarget = Math.max(1, Math.floor(baseTarget * mul));
+  state.currentQTE.mashCount = 0;
+
+  var overlay = document.getElementById("qte-mash-overlay");
+  var textEl = overlay.querySelector(".qte-text");
+  var bar = overlay.querySelector(".qte-timer-fill");
+  var targetEl = document.getElementById("qte-mash-target");
+  var countEl = document.getElementById("qte-mash-count");
+  var button = document.getElementById("qte-mash-button");
+
+  textEl.textContent = text;
+  bar.style.width = "100%";
+  targetEl.textContent = state.currentQTE.mashTarget;
+  countEl.textContent = "0";
+
+  overlay.classList.remove("hidden");
+
+  state.currentQTE.timerId = setInterval(function () {
+    updateQTETimer(bar);
+  }, 50);
+
+  window.addEventListener("keydown", handleMashKeydown);
+  button.addEventListener("click", handleMashButtonClick);
+}
+
+function handleMashKeydown(e) {
+  if (state.currentQTE.type !== "mash") return;
+  if (e.key.toLowerCase() === state.currentQTE.mashKey) {
+    incrementMash();
   }
 }
 
-function resolveDirectionQTE(dir) {
-  var qte = state.currentQTE;
-  if (!qte.sceneId || qte.type !== "direction") return;
-
-  // 틀리면 즉시 실패
-  if (dir !== qte.targetDir) {
-    endQTE(false);
-    return;
-  }
-
-  // 맞으면 카운터 증가
-  qte.currentCount = (qte.currentCount || 0) + 1;
-
-  if (qte.currentCount >= qte.targetCount) {
-    // 목표 횟수 도달 → 최종 성공
-    endQTE(true);
-    return;
-  }
-
-  // 아직 목표 미달 → 다음 라운드
-  qte.startedAt = Date.now();
-
-  var dirs = qte.directions || [];
-  if (dirs.length === 0) return;
-
-  var nextDir = dirs[Math.floor(Math.random() * dirs.length)];
-  qte.targetDir = nextDir;
-
-  var overlay = document.getElementById(qte.overlayId);
-  if (!overlay) return;
-
-  var dirButtons = overlay.querySelectorAll(".dir-btn");
-  for (var i = 0; i < dirButtons.length; i++) {
-    dirButtons[i].classList.remove("active");
-    if (dirButtons[i].getAttribute("data-dir") === nextDir) {
-      dirButtons[i].classList.add("active");
-    }
-  }
-
-  overlay.querySelector(".qte-timer-fill").style.width = "100%";
+function handleMashButtonClick() {
+  if (state.currentQTE.type !== "mash") return;
+  incrementMash();
 }
 
 function incrementMash() {
-  var qte = state.currentQTE;
-  if (!qte.sceneId || qte.type !== "mash") return;
+  state.currentQTE.mashCount++;
+  var countEl = document.getElementById("qte-mash-count");
+  if (countEl) countEl.textContent = state.currentQTE.mashCount;
 
-  qte.mashCount++;
-  document.getElementById("qte-mash-count").textContent = qte.mashCount;
-
-  if (qte.mashCount >= qte.mashTarget) {
-    endQTE(true);
+  if (state.currentQTE.mashCount >= state.currentQTE.mashTarget) {
+    finishQTE(true);
   }
 }
 
-function endQTE(success) {
-  var qte = state.currentQTE;
-
-  if (qte.timerId) {
-    cancelAnimationFrame(qte.timerId);
-  }
-
-  if (qte.overlayId) {
-    document.getElementById(qte.overlayId).classList.add("hidden");
-  }
-  document.getElementById("btn-settings").disabled = false;
-
-  var successNext = qte.successNext;
-  var failNext = qte.failNext;
-  var deathNext = qte.deathNext || "death_generic";
-  var woundedNext = qte.woundedNext || failNext || "wounded_continue";
-
-  // QTE 상태 초기화
-  state.currentQTE = {
-    sceneId: null,
-    type: null,
-    timeLimit: 0,
-    startedAt: 0,
-    timerId: null,
-    targetDir: null,
-    mashKey: "z",
-    mashTarget: 0,
-    mashCount: 0,
-    overlayId: null,
-    targetCount: 1,
-    currentCount: 0,
-    successNext: null,
-    failNext: null,
-    deathNext: null,
-    woundedNext: null,
-    directions: null
-  };
-
-  if (success) {
-    loadScene(successNext);
+function updateQTETimer(bar) {
+  var now = Date.now();
+  var remain = state.currentQTE.endTime - now;
+  if (remain <= 0) {
+    bar.style.width = "0%";
+    finishQTE(false);
   } else {
-    state.player.failures++;
-    updatePlayerStatusUI();
+    var ratio = remain / state.currentQTE.timeLimit;
+    bar.style.width = Math.max(0, Math.min(1, ratio)) * 100 + "%";
+  }
+}
 
-    if (state.player.failures > state.player.stats.vit) {
-      state.isDead = true;
-      loadScene(deathNext);
+function finishQTE(success) {
+  var overlayId = state.currentQTE.overlayId;
+  var overlay = overlayId ? document.getElementById(overlayId) : null;
+
+  if (state.currentQTE.timerId) {
+    clearInterval(state.currentQTE.timerId);
+    state.currentQTE.timerId = null;
+  }
+
+  if (state.currentQTE.type === "direction") {
+    window.removeEventListener("keydown", handleDirectionKeydown);
+    if (overlay) {
+      var btns = overlay.querySelectorAll(".dir-btn");
+      btns.forEach(function (b) {
+        b.removeEventListener("click", handleDirectionButtonClick);
+      });
+    }
+  } else if (state.currentQTE.type === "mash") {
+    window.removeEventListener("keydown", handleMashKeydown);
+    var btn = document.getElementById("qte-mash-button");
+    if (btn) {
+      btn.removeEventListener("click", handleMashButtonClick);
+    }
+  }
+
+  if (overlay) overlay.classList.add("hidden");
+
+  var nextId = success ? state.currentQTE.successNext : state.currentQTE.failNext;
+  var eff = success ? state.currentQTE.successEffects : state.currentQTE.failEffects;
+  state.currentQTE.type = null;
+
+  if (eff) applyEffects(eff);
+  if (nextId) {
+    if (nextId === "__restart__") {
+      restartGame();
     } else {
-      loadScene(woundedNext);
+      loadScene(nextId);
     }
   }
 }
 
-/* ---- 세이브/설정 ---- */
+// ──────────────────────
+// 설정 UI
+// ──────────────────────
+function applySettingsToDOM() {
+  var body = document.body;
+  body.classList.remove("font-small", "font-normal", "font-large");
+  var sizeClass =
+    state.settings.fontSize === "small"
+      ? "font-small"
+      : state.settings.fontSize === "large"
+      ? "font-large"
+      : "font-normal";
+  body.classList.add(sizeClass);
 
-function saveGame() {
-  if (!state.runActive || state.isDead) {
-    return;
-  }
+  var textSel = document.getElementById("setting-text-speed");
+  var fontSel = document.getElementById("setting-font-size");
+  var muteChk = document.getElementById("setting-mute");
+  var qteSel = document.getElementById("setting-qte-difficulty");
 
-  var saveData = {
-    currentSceneId: state.currentSceneId,
-    player: JSON.parse(JSON.stringify(state.player)),
-    flags: JSON.parse(JSON.stringify(state.flags)),
-    runActive: state.runActive
-  };
-
-  localStorage.setItem("saveData", JSON.stringify(saveData));
-  alert("게임이 저장되었습니다.");
+  if (textSel) textSel.value = state.settings.textSpeed;
+  if (fontSel) fontSel.value = state.settings.fontSize;
+  if (muteChk) muteChk.checked = state.settings.mute;
+  if (qteSel) qteSel.value = state.settings.qteDifficulty;
 }
 
-function loadGame() {
-  var saveDataStr = localStorage.getItem("saveData");
-  if (!saveDataStr) {
-    return;
-  }
-
-  if (state.isDead) {
-    restartGame();
-    return;
-  }
-
-  var saveData = JSON.parse(saveDataStr);
-
-  state.currentSceneId = saveData.currentSceneId;
-  state.player = saveData.player;
-  state.flags = saveData.flags;
-  state.runActive = saveData.runActive;
-  state.isDead = false;
-
-  document.getElementById("start-screen").classList.add("hidden");
-  closeSettings();
-  loadScene(state.currentSceneId);
+function openSettings() {
+  document.getElementById("settings-overlay").classList.remove("hidden");
 }
 
-function restartGame() {
-  localStorage.removeItem("saveData");
+function closeSettings() {
+  document.getElementById("settings-overlay").classList.add("hidden");
+}
 
-  state.currentSceneId = "start";
-  state.player = {
-    name: "",
-    stats: { agi: 3, wis: 3, vit: 3 },
-    failures: 0
+// ──────────────────────
+// 창작 모드 (비번 + 에디터)
+// ──────────────────────
+var EDITOR_PASSWORD = "3927";
+var editorCurrentSceneId = null;
+
+function openEditorPassword() {
+  var overlay = document.getElementById("editor-password-overlay");
+  var input = document.getElementById("editor-password-input");
+  var error = document.getElementById("editor-password-error");
+  if (!overlay || !input || !error) return;
+
+  overlay.classList.remove("hidden");
+  input.value = "";
+  error.textContent = "";
+  input.focus();
+}
+
+function closeEditorPassword() {
+  var overlay = document.getElementById("editor-password-overlay");
+  if (overlay) overlay.classList.add("hidden");
+}
+
+function tryOpenEditor() {
+  var input = document.getElementById("editor-password-input");
+  var error = document.getElementById("editor-password-error");
+  if (!input || !error) return;
+  var val = input.value.trim();
+  if (val === EDITOR_PASSWORD) {
+    closeEditorPassword();
+    openEditor();
+  } else {
+    error.textContent = "비밀번호가 틀렸습니다.";
+  }
+}
+
+function openEditor() {
+  var overlay = document.getElementById("editor-overlay");
+  if (!overlay) return;
+  overlay.classList.remove("hidden");
+
+  refreshEditorSceneSelect();
+  loadSceneIntoEditor(null);
+  updateEditorQTESection();
+}
+
+function closeEditor() {
+  var overlay = document.getElementById("editor-overlay");
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+}
+
+// 에디터: 씬 목록 select 채우기
+function refreshEditorSceneSelect() {
+  var select = document.getElementById("editor-scene-select");
+  if (!select) return;
+  select.innerHTML = "";
+
+  var optNew = document.createElement("option");
+  optNew.value = "";
+  optNew.textContent = "(새 씬)";
+  select.appendChild(optNew);
+
+  for (var i = 0; i < SCENES.length; i++) {
+    var s = SCENES[i];
+    var opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = s.id + " (" + (s.type || "scene") + ")";
+    if (s.id === editorCurrentSceneId) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  }
+}
+
+// 에디터: 씬 읽어서 폼에 반영
+function loadSceneIntoEditor(id) {
+  editorCurrentSceneId = id;
+
+  var idInput = document.getElementById("editor-scene-id");
+  var typeSel = document.getElementById("editor-scene-type");
+  var imgInput = document.getElementById("editor-scene-image");
+  var textArea = document.getElementById("editor-scene-text");
+
+  var onEnterEffectsDiv = document.getElementById("editor-onenter-effects");
+  var qteSection = document.getElementById("editor-qte-section");
+  var qteTypeSel = document.getElementById("editor-qte-type");
+  var qteBaseTime = document.getElementById("editor-qte-base-time");
+  var qteTargetCount = document.getElementById("editor-qte-target-count");
+  var qteBaseTarget = document.getElementById("editor-qte-base-target");
+  var qteKey = document.getElementById("editor-qte-key");
+  var qteSuccessNext = document.getElementById("editor-qte-success-next");
+  var qteFailNext = document.getElementById("editor-qte-fail-next");
+  var qteSuccessEffectsDiv = document.getElementById("editor-qte-success-effects");
+  var qteFailEffectsDiv = document.getElementById("editor-qte-fail-effects");
+
+  var choicesContainer = document.getElementById("editor-choices-container");
+
+  // 기본 초기화
+  idInput.value = id || "";
+  typeSel.value = "scene";
+  imgInput.value = "";
+  textArea.value = "";
+  onEnterEffectsDiv.innerHTML = "";
+  qteSuccessEffectsDiv.innerHTML = "";
+  qteFailEffectsDiv.innerHTML = "";
+  qteBaseTime.value = 3000;
+  qteTargetCount.value = 1;
+  qteBaseTarget.value = 10;
+  qteKey.value = "z";
+  qteSuccessNext.value = "";
+  qteFailNext.value = "";
+  choicesContainer.innerHTML = "";
+
+  var scene = id ? findScene(id) : null;
+
+  if (scene) {
+    idInput.value = scene.id || "";
+    typeSel.value = scene.type || "scene";
+    imgInput.value = scene.image || "";
+    textArea.value = scene.text || "";
+
+    // onEnter.effects
+    if (scene.onEnter && scene.onEnter.effects) {
+      addEffectRow(onEnterEffectsDiv, scene.onEnter.effects);
+    }
+
+    // QTE
+    if (scene.type === "qte" && scene.qte) {
+      var q = scene.qte;
+      qteTypeSel.value = q.qteType || "direction";
+      qteBaseTime.value = q.baseTimeLimit || 3000;
+      qteTargetCount.value = q.targetCount || 1;
+      qteBaseTarget.value = q.baseTarget || 10;
+      qteKey.value = q.key || "z";
+      qteSuccessNext.value = q.successNext || "";
+      qteFailNext.value = q.failNext || "";
+
+      if (q.successEffects) {
+        addEffectRow(qteSuccessEffectsDiv, q.successEffects);
+      }
+      if (q.failEffects) {
+        addEffectRow(qteFailEffectsDiv, q.failEffects);
+      }
+    }
+
+    // 선택지
+    var choices = scene.choices || [];
+    for (var i = 0; i < choices.length; i++) {
+      addChoiceBlock(choicesContainer, choices[i]);
+    }
+  }
+
+  updateEditorQTESection();
+}
+
+// editor: QTE 섹션 show/hide
+function updateEditorQTESection() {
+  var typeSel = document.getElementById("editor-scene-type");
+  var qteSection = document.getElementById("editor-qte-section");
+  var qteDirRow = document.getElementById("editor-qte-direction-row");
+  var qteMashRow = document.getElementById("editor-qte-mash-row");
+  var qteTypeSel = document.getElementById("editor-qte-type");
+
+  if (!typeSel || !qteSection) return;
+
+  if (typeSel.value === "qte") {
+    qteSection.style.display = "block";
+  } else {
+    qteSection.style.display = "none";
+  }
+
+  if (qteTypeSel.value === "direction") {
+    qteDirRow.style.display = "flex";
+    qteMashRow.style.display = "none";
+  } else {
+    qteDirRow.style.display = "none";
+    qteMashRow.style.display = "flex";
+  }
+}
+
+// ──────────────
+// 에디터: 효과 row
+// ──────────────
+function addEffectRow(container, effectObj) {
+  if (!container) return;
+  var row = document.createElement("div");
+  row.className = "editor-effect-row";
+
+  // 타입: stat / meter / flag / failures
+  var typeSel = document.createElement("select");
+  typeSel.className = "effect-type";
+  ["stat", "meter", "flag", "failures"].forEach(function (t) {
+    var o = document.createElement("option");
+    o.value = t;
+    o.textContent = t;
+    typeSel.appendChild(o);
+  });
+
+  var keyInput = document.createElement("input");
+  keyInput.type = "text";
+  keyInput.placeholder = "key(스탯/게이지/플래그명)";
+  keyInput.className = "effect-key";
+
+  var opSel = document.createElement("select");
+  opSel.className = "effect-op";
+  [["add", "증가/감소(+/-)"], ["set", "설정(=)"]].forEach(function (p) {
+    var o = document.createElement("option");
+    o.value = p[0];
+    o.textContent = p[1];
+    opSel.appendChild(o);
+  });
+
+  var valInput = document.createElement("input");
+  valInput.type = "text";
+  valInput.className = "effect-value";
+  valInput.placeholder = "값";
+
+  var delBtn = document.createElement("button");
+  delBtn.textContent = "삭제";
+  delBtn.addEventListener("click", function () {
+    container.removeChild(row);
+  });
+
+  row.appendChild(typeSel);
+  row.appendChild(keyInput);
+  row.appendChild(opSel);
+  row.appendChild(valInput);
+  row.appendChild(delBtn);
+
+  container.appendChild(row);
+
+  // effectObj가 있으면 채워주기(가장 단순한 경우만)
+  if (effectObj) {
+    if (effectObj.stats) {
+      for (var k in effectObj.stats) {
+        typeSel.value = "stat";
+        keyInput.value = k;
+        opSel.value = "add";
+        valInput.value = effectObj.stats[k];
+        break;
+      }
+    } else if (effectObj.setStats) {
+      for (var k2 in effectObj.setStats) {
+        typeSel.value = "stat";
+        keyInput.value = k2;
+        opSel.value = "set";
+        valInput.value = effectObj.setStats[k2];
+        break;
+      }
+    } else if (effectObj.meters) {
+      for (var m in effectObj.meters) {
+        typeSel.value = "meter";
+        keyInput.value = m;
+        opSel.value = "add";
+        valInput.value = effectObj.meters[m];
+        break;
+      }
+    } else if (effectObj.setMeters) {
+      for (var m2 in effectObj.setMeters) {
+        typeSel.value = "meter";
+        keyInput.value = m2;
+        opSel.value = "set";
+        valInput.value = effectObj.setMeters[m2];
+        break;
+      }
+    } else if (effectObj.flags) {
+      for (var f in effectObj.flags) {
+        typeSel.value = "flag";
+        keyInput.value = f;
+        opSel.value = "set";
+        valInput.value = effectObj.flags[f];
+        break;
+      }
+    } else if (typeof effectObj.failures === "number") {
+      typeSel.value = "failures";
+      keyInput.value = "";
+      opSel.value = "add";
+      valInput.value = effectObj.failures;
+    }
+  }
+}
+
+function readEffectsFromContainer(container) {
+  if (!container) return null;
+  var rows = container.querySelectorAll(".editor-effect-row");
+  if (!rows.length) return null;
+
+  var effects = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var typeSel = r.querySelector(".effect-type");
+    var keyInput = r.querySelector(".effect-key");
+    var opSel = r.querySelector(".effect-op");
+    var valInput = r.querySelector(".effect-value");
+    if (!typeSel || !opSel || !valInput) continue;
+
+    var t = typeSel.value;
+    var op = opSel.value;
+    var vStr = valInput.value.trim();
+
+    if (t === "failures") {
+      var delta = parseInt(vStr, 10);
+      if (!isNaN(delta)) {
+        effects.failures = (effects.failures || 0) + delta;
+      }
+      continue;
+    }
+
+    var key = keyInput.value.trim();
+    if (!key) continue;
+
+    if (t === "stat") {
+      if (op === "add") {
+        var d = parseInt(vStr, 10);
+        if (isNaN(d)) continue;
+        if (!effects.stats) effects.stats = {};
+        effects.stats[key] = (effects.stats[key] || 0) + d;
+      } else {
+        var sVal = parseInt(vStr, 10);
+        if (isNaN(sVal)) continue;
+        if (!effects.setStats) effects.setStats = {};
+        effects.setStats[key] = sVal;
+      }
+    } else if (t === "meter") {
+      if (op === "add") {
+        var md = parseInt(vStr, 10);
+        if (isNaN(md)) continue;
+        if (!effects.meters) effects.meters = {};
+        effects.meters[key] = (effects.meters[key] || 0) + md;
+      } else {
+        var mv = parseInt(vStr, 10);
+        if (isNaN(mv)) continue;
+        if (!effects.setMeters) effects.setMeters = {};
+        effects.setMeters[key] = mv;
+      }
+    } else if (t === "flag") {
+      if (!effects.flags) effects.flags = {};
+      // 문자열 "true"/"false"/그외 → true/false 처리
+      var boolVal = vStr.toLowerCase();
+      if (boolVal === "true" || boolVal === "1" || boolVal === "t") {
+        effects.flags[key] = true;
+      } else if (boolVal === "false" || boolVal === "0" || boolVal === "f") {
+        effects.flags[key] = false;
+      } else {
+        effects.flags[key] = !!vStr;
+      }
+    }
+  }
+
+  if (
+    !effects.stats &&
+    !effects.setStats &&
+    !effects.meters &&
+    !effects.setMeters &&
+    !effects.flags &&
+    typeof effects.failures !== "number"
+  ) {
+    return null;
+  }
+  return effects;
+}
+
+// ──────────────
+// 에디터: 조건 row (각 선택지당 1개만)
+// ──────────────
+function addConditionRow(container, cond) {
+  container.innerHTML = "";
+  var row = document.createElement("div");
+  row.className = "editor-condition-row";
+
+  var typeSel = document.createElement("select");
+  typeSel.className = "cond-type";
+  [
+    ["", "조건 없음"],
+    ["stat", "스탯"],
+    ["meter", "수치(meter)"],
+    ["flag", "플래그"]
+  ].forEach(function (p) {
+    var o = document.createElement("option");
+    o.value = p[0];
+    o.textContent = p[1];
+    typeSel.appendChild(o);
+  });
+
+  var keyInput = document.createElement("input");
+  keyInput.type = "text";
+  keyInput.className = "cond-key";
+  keyInput.placeholder = "키 이름";
+
+  var opSel = document.createElement("select");
+  opSel.className = "cond-op";
+  [
+    [">=", "이상(>=)"],
+    ["<=", "이하(<=)"],
+    [">", "초과(>)"],
+    ["<", "미만(<)"],
+    ["==", "같다(==)"],
+    ["!=", "다르다(!=)"]
+  ].forEach(function (p) {
+    var o = document.createElement("option");
+    o.value = p[0];
+    o.textContent = p[1];
+    opSel.appendChild(o);
+  });
+
+  var valInput = document.createElement("input");
+  valInput.type = "text";
+  valInput.className = "cond-value";
+  valInput.placeholder = "값";
+
+  var delBtn = document.createElement("button");
+  delBtn.textContent = "조건 삭제";
+  delBtn.addEventListener("click", function () {
+    container.innerHTML = "";
+  });
+
+  row.appendChild(typeSel);
+  row.appendChild(keyInput);
+  row.appendChild(opSel);
+  row.appendChild(valInput);
+  row.appendChild(delBtn);
+  container.appendChild(row);
+
+  if (cond) {
+    typeSel.value = cond.type || "";
+    keyInput.value = cond.key || "";
+    opSel.value = cond.op || ">=";
+    if (typeof cond.value !== "undefined") {
+      valInput.value = String(cond.value);
+    }
+  }
+}
+
+function readConditionFromContainer(container) {
+  if (!container) return null;
+  var row = container.querySelector(".editor-condition-row");
+  if (!row) return null;
+
+  var typeSel = row.querySelector(".cond-type");
+  var keyInput = row.querySelector(".cond-key");
+  var opSel = row.querySelector(".cond-op");
+  var valInput = row.querySelector(".cond-value");
+
+  var t = typeSel.value;
+  if (!t) return null;
+
+  if (t === "flag") {
+    var key = keyInput.value.trim();
+    if (!key) return null;
+    var vStr = valInput.value.trim().toLowerCase();
+    var v;
+    if (vStr === "true" || vStr === "1" || vStr === "t") v = true;
+    else if (vStr === "false" || vStr === "0" || vStr === "f") v = false;
+    else v = true;
+    return {
+      type: "flag",
+      key: key,
+      value: v
+    };
+  } else {
+    var key2 = keyInput.value.trim();
+    if (!key2) return null;
+    var vNum = parseInt(valInput.value.trim(), 10);
+    if (isNaN(vNum)) return null;
+    return {
+      type: t,
+      key: key2,
+      op: opSel.value || ">=",
+      value: vNum
+    };
+  }
+}
+
+// ──────────────
+// 에디터: 선택지 block
+// ──────────────
+function addChoiceBlock(container, choiceObj) {
+  var block = document.createElement("div");
+  block.className = "editor-choice-block";
+
+  var header = document.createElement("div");
+  header.className = "editor-choice-header";
+
+  var title = document.createElement("span");
+  title.textContent = "선택지";
+
+  var delBtn = document.createElement("button");
+  delBtn.textContent = "선택지 삭제";
+  delBtn.addEventListener("click", function () {
+    container.removeChild(block);
+  });
+
+  header.appendChild(title);
+  header.appendChild(delBtn);
+
+  var row1 = document.createElement("div");
+  row1.className = "editor-row";
+  var labelInput = document.createElement("input");
+  labelInput.type = "text";
+  labelInput.placeholder = "선택지 텍스트";
+  labelInput.className = "choice-label";
+  var nextInput = document.createElement("input");
+  nextInput.type = "text";
+  nextInput.placeholder = "다음 씬 ID";
+  nextInput.className = "choice-next";
+
+  row1.appendChild(labelInput);
+  row1.appendChild(nextInput);
+
+  var condContainer = document.createElement("div");
+  condContainer.className = "choice-cond-container";
+
+  var addCondBtn = document.createElement("button");
+  addCondBtn.textContent = "조건 설정";
+  addCondBtn.addEventListener("click", function () {
+    // 한 선택지당 조건 1개만
+    addConditionRow(condContainer, null);
+  });
+
+  var effContainer = document.createElement("div");
+  effContainer.className = "choice-eff-container";
+
+  var addEffBtn = document.createElement("button");
+  addEffBtn.textContent = "효과 추가";
+  addEffBtn.addEventListener("click", function () {
+    addEffectRow(effContainer, null);
+  });
+
+  block.appendChild(header);
+  block.appendChild(row1);
+
+  var condLabel = document.createElement("div");
+  condLabel.textContent = "조건 (없으면 항상 선택 가능)";
+  block.appendChild(condLabel);
+  block.appendChild(condContainer);
+  block.appendChild(addCondBtn);
+
+  var effLabel = document.createElement("div");
+  effLabel.textContent = "효과 (이 선택지를 눌렀을 때 적용)";
+  block.appendChild(effLabel);
+  block.appendChild(effContainer);
+  block.appendChild(addEffBtn);
+
+  container.appendChild(block);
+
+  if (choiceObj) {
+    labelInput.value = choiceObj.label || "";
+    nextInput.value = choiceObj.next || "";
+
+    if (choiceObj.conditions && choiceObj.conditions.length > 0) {
+      addConditionRow(condContainer, choiceObj.conditions[0]);
+    }
+    if (choiceObj.effects) {
+      addEffectRow(effContainer, choiceObj.effects);
+    }
+  }
+}
+
+function readChoicesFromContainer(container) {
+  if (!container) return [];
+  var blocks = container.querySelectorAll(".editor-choice-block");
+  var result = [];
+
+  for (var i = 0; i < blocks.length; i++) {
+    var b = blocks[i];
+    var labelInput = b.querySelector(".choice-label");
+    var nextInput = b.querySelector(".choice-next");
+    var condContainer = b.querySelector(".choice-cond-container");
+    var effContainer = b.querySelector(".choice-eff-container");
+
+    var label = labelInput.value.trim();
+    var next = nextInput.value.trim();
+    if (!label) continue;
+
+    var ch = {
+      label: label,
+      next: next
+    };
+
+    var cond = readConditionFromContainer(condContainer);
+    if (cond) ch.conditions = [cond];
+
+    var eff = readEffectsFromContainer(effContainer);
+    if (eff) ch.effects = eff;
+
+    result.push(ch);
+  }
+
+  return result;
+}
+
+// ──────────────
+// 에디터: 씬 저장
+// ──────────────
+function saveCurrentSceneFromEditor() {
+  var idInput = document.getElementById("editor-scene-id");
+  var typeSel = document.getElementById("editor-scene-type");
+  var imgInput = document.getElementById("editor-scene-image");
+  var textArea = document.getElementById("editor-scene-text");
+
+  var onEnterEffectsDiv = document.getElementById("editor-onenter-effects");
+  var qteTypeSel = document.getElementById("editor-qte-type");
+  var qteBaseTime = document.getElementById("editor-qte-base-time");
+  var qteTargetCount = document.getElementById("editor-qte-target-count");
+  var qteBaseTarget = document.getElementById("editor-qte-base-target");
+  var qteKey = document.getElementById("editor-qte-key");
+  var qteSuccessNext = document.getElementById("editor-qte-success-next");
+  var qteFailNext = document.getElementById("editor-qte-fail-next");
+  var qteSuccessEffectsDiv = document.getElementById("editor-qte-success-effects");
+  var qteFailEffectsDiv = document.getElementById("editor-qte-fail-effects");
+
+  var choicesContainer = document.getElementById("editor-choices-container");
+
+  var id = idInput.value.trim();
+  if (!id) {
+    alert("씬 ID를 입력하세요.");
+    return;
+  }
+
+  var scene = {
+    id: id,
+    type: typeSel.value || "scene",
+    image: imgInput.value.trim() || null,
+    text: textArea.value || ""
   };
-  state.flags = {};
-  state.runActive = false;
-  state.isDead = false;
 
-  state.currentQTE = {
-    sceneId: null,
-    type: null,
-    timeLimit: 0,
-    startedAt: 0,
-    timerId: null,
-    targetDir: null,
-    mashKey: "z",
-    mashTarget: 0,
-    mashCount: 0,
-    overlayId: null,
-    targetCount: 1,
-    currentCount: 0,
-    successNext: null,
-    failNext: null,
-    deathNext: null,
-    woundedNext: null,
-    directions: null
-  };
+  // onEnter.effects
+  var onEnterEff = readEffectsFromContainer(onEnterEffectsDiv);
+  if (onEnterEff) {
+    scene.onEnter = { effects: onEnterEff };
+  }
 
-  document.getElementById("qte-direction-overlay").classList.add("hidden");
-  document.getElementById("qte-mash-overlay").classList.add("hidden");
-  document.getElementById("btn-settings").disabled = false;
+  // QTE
+  if (scene.type === "qte") {
+    var qteObj = {
+      qteType: qteTypeSel.value || "direction",
+      baseTimeLimit: parseInt(qteBaseTime.value, 10) || 3000,
+      successNext: qteSuccessNext.value.trim() || null,
+      failNext: qteFailNext.value.trim() || null
+    };
 
-  closeSettings();
+    if (qteObj.qteType === "direction") {
+      qteObj.directions = ["up", "down", "left", "right"];
+      qteObj.targetCount = parseInt(qteTargetCount.value, 10) || 1;
+    } else {
+      qteObj.baseTarget = parseInt(qteBaseTarget.value, 10) || 10;
+      qteObj.key = (qteKey.value || "z").toLowerCase();
+    }
 
-  document.getElementById("start-screen").classList.remove("hidden");
-  renderScene(findScene("start"));
+    var qse = readEffectsFromContainer(qteSuccessEffectsDiv);
+    if (qse) qteObj.successEffects = qse;
+    var qfe = readEffectsFromContainer(qteFailEffectsDiv);
+    if (qfe) qteObj.failEffects = qfe;
+
+    scene.qte = qteObj;
+  }
+
+  // 선택지
+  var choices = readChoicesFromContainer(choicesContainer);
+  if (choices.length > 0) {
+    scene.choices = choices;
+  }
+
+  // SCENES에 저장 (있으면 덮어쓰기)
+  var idx = -1;
+  for (var i = 0; i < SCENES.length; i++) {
+    if (SCENES[i].id === id) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx >= 0) {
+    SCENES[idx] = scene;
+  } else {
+    SCENES.push(scene);
+  }
+
+  editorCurrentSceneId = id;
+  refreshEditorSceneSelect();
+  alert("씬 저장 완료: " + id);
+}
+
+// ──────────────────────
+// 초기화 및 이벤트 바인딩
+// ──────────────────────
+function setupEventListeners() {
+  var startScreen = document.getElementById("start-screen");
+  if (startScreen) {
+    startScreen.addEventListener("click", function () {
+      startScreen.classList.add("hidden");
+      var loaded = loadGameFromStorage();
+      if (!loaded) {
+        // 씬이 하나도 없으면 char_create로, 있으면 첫 씬으로
+        if (SCENES.length === 0) {
+          // 최소 캐릭터 생성 씬이 있다고 가정
+          loadScene("char_create");
+        } else {
+          loadScene(SCENES[0].id);
+        }
+      }
+    });
+  }
+
+  var btnSettings = document.getElementById("btn-settings");
+  if (btnSettings) {
+    btnSettings.addEventListener("click", openSettings);
+  }
+
+  var btnSettingsClose = document.getElementById("btn-settings-close");
+  if (btnSettingsClose) {
+    btnSettingsClose.addEventListener("click", closeSettings);
+  }
+
+  var btnSave = document.getElementById("btn-setting-save");
+  if (btnSave) {
+    btnSave.addEventListener("click", function () {
+      saveGame();
+      alert("게임 저장 완료");
+    });
+  }
+
+  var btnLoad = document.getElementById("btn-setting-load");
+  if (btnLoad) {
+    btnLoad.addEventListener("click", function () {
+      var ok = loadGameFromStorage();
+      if (!ok) alert("저장된 게임이 없습니다.");
+    });
+  }
+
+  var btnRestart = document.getElementById("btn-setting-restart");
+  if (btnRestart) {
+    btnRestart.addEventListener("click", function () {
+      restartGame();
+      closeSettings();
+    });
+  }
+
+  var textSel = document.getElementById("setting-text-speed");
+  if (textSel) {
+    textSel.addEventListener("change", function () {
+      state.settings.textSpeed = textSel.value;
+      applySettingsToDOM();
+      saveGame();
+    });
+  }
+
+  var fontSel = document.getElementById("setting-font-size");
+  if (fontSel) {
+    fontSel.addEventListener("change", function () {
+      state.settings.fontSize = fontSel.value;
+      applySettingsToDOM();
+      saveGame();
+    });
+  }
+
+  var muteChk = document.getElementById("setting-mute");
+  if (muteChk) {
+    muteChk.addEventListener("change", function () {
+      state.settings.mute = muteChk.checked;
+      saveGame();
+    });
+  }
+
+  var qteSel = document.getElementById("setting-qte-difficulty");
+  if (qteSel) {
+    qteSel.addEventListener("change", function () {
+      state.settings.qteDifficulty = qteSel.value;
+      saveGame();
+    });
+  }
+
+  // 창작 버튼
+  var btnEditor = document.getElementById("btn-editor");
+  if (btnEditor) {
+    btnEditor.addEventListener("click", openEditorPassword);
+  }
+
+  var btnEditorPwOk = document.getElementById("btn-editor-password-ok");
+  if (btnEditorPwOk) {
+    btnEditorPwOk.addEventListener("click", tryOpenEditor);
+  }
+
+  var btnEditorPwCancel = document.getElementById("btn-editor-password-cancel");
+  if (btnEditorPwCancel) {
+    btnEditorPwCancel.addEventListener("click", closeEditorPassword);
+  }
+
+  var pwInput = document.getElementById("editor-password-input");
+  if (pwInput) {
+    pwInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        tryOpenEditor();
+      }
+    });
+  }
+
+  var btnEditorClose = document.getElementById("btn-editor-close");
+  if (btnEditorClose) {
+    btnEditorClose.addEventListener("click", closeEditor);
+  }
+
+  var sceneSelect = document.getElementById("editor-scene-select");
+  if (sceneSelect) {
+    sceneSelect.addEventListener("change", function () {
+      var id = sceneSelect.value || null;
+      loadSceneIntoEditor(id);
+    });
+  }
+
+  var btnNewScene = document.getElementById("btn-editor-new-scene");
+  if (btnNewScene) {
+    btnNewScene.addEventListener("click", function () {
+      editorCurrentSceneId = null;
+      loadSceneIntoEditor(null);
+      refreshEditorSceneSelect();
+    });
+  }
+
+  var btnDeleteScene = document.getElementById("btn-editor-delete-scene");
+  if (btnDeleteScene) {
+    btnDeleteScene.addEventListener("click", function () {
+      if (!editorCurrentSceneId) {
+        alert("선택된 씬이 없습니다.");
+        return;
+      }
+      if (!confirm("씬 '" + editorCurrentSceneId + "' 를 삭제할까요?")) return;
+      var id = editorCurrentSceneId;
+      var idx = -1;
+      for (var i = 0; i < SCENES.length; i++) {
+        if (SCENES[i].id === id) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx >= 0) {
+        SCENES.splice(idx, 1);
+        saveScenesToStorage();
+      }
+      editorCurrentSceneId = null;
+      refreshEditorSceneSelect();
+      loadSceneIntoEditor(null);
+    });
+  }
+
+  var btnOnEnterAdd = document.getElementById("btn-editor-onenter-add-effect");
+  if (btnOnEnterAdd) {
+    btnOnEnterAdd.addEventListener("click", function () {
+      var div = document.getElementById("editor-onenter-effects");
+      addEffectRow(div, null);
+    });
+  }
+
+  var typeSel2 = document.getElementById("editor-scene-type");
+  if (typeSel2) {
+    typeSel2.addEventListener("change", updateEditorQTESection);
+  }
+
+  var qteTypeSel = document.getElementById("editor-qte-type");
+  if (qteTypeSel) {
+    qteTypeSel.addEventListener("change", updateEditorQTESection);
+  }
+
+  var btnQteSuccAdd = document.getElementById("btn-editor-qte-success-add-effect");
+  if (btnQteSuccAdd) {
+    btnQteSuccAdd.addEventListener("click", function () {
+      var div = document.getElementById("editor-qte-success-effects");
+      addEffectRow(div, null);
+    });
+  }
+
+  var btnQteFailAdd = document.getElementById("btn-editor-qte-fail-add-effect");
+  if (btnQteFailAdd) {
+    btnQteFailAdd.addEventListener("click", function () {
+      var div = document.getElementById("editor-qte-fail-effects");
+      addEffectRow(div, null);
+    });
+  }
+
+  var btnAddChoice = document.getElementById("btn-editor-add-choice");
+  if (btnAddChoice) {
+    btnAddChoice.addEventListener("click", function () {
+      var container = document.getElementById("editor-choices-container");
+      addChoiceBlock(container, null);
+    });
+  }
+
+  var btnSaveScene = document.getElementById("btn-editor-save-scene");
+  if (btnSaveScene) {
+    btnSaveScene.addEventListener("click", function () {
+      saveCurrentSceneFromEditor();
+    });
+  }
+
+  var btnSaveAll = document.getElementById("btn-editor-save-all");
+  if (btnSaveAll) {
+    btnSaveAll.addEventListener("click", function () {
+      saveScenesToStorage();
+      alert("전체 씬 저장 완료");
+    });
+  }
+}
+
+function initGame() {
+  loadScenesFromStorage();
+  applySettingsToDOM();
   updatePlayerStatusUI();
+  setupEventListeners();
 }
 
-function saveSettings() {
-  localStorage.setItem("settings", JSON.stringify(state.settings));
-}
-
-function loadSettings() {
-  var settingsStr = localStorage.getItem("settings");
-  if (settingsStr) {
-    var savedSettings = JSON.parse(settingsStr);
-    state.settings.textSpeed = savedSettings.textSpeed || "normal";
-    state.settings.qteDifficulty = savedSettings.qteDifficulty || "normal";
-    state.settings.mute = savedSettings.mute || false;
-    state.settings.fontSize = savedSettings.fontSize || "normal";
-  }
-}
-
-function applySettingsUI() {
-  document.body.classList.remove("font-small", "font-normal", "font-large");
-  document.body.classList.add("font-" + state.settings.fontSize);
-
-  document.getElementById("setting-text-speed").value = state.settings.textSpeed;
-  document.getElementById("setting-font-size").value = state.settings.fontSize;
-  document.getElementById("setting-mute").checked = state.settings.mute;
-  document.getElementById("setting-qte-difficulty").value = state.settings.qteDifficulty;
-}
-
-window.onload = initGame;
+document.addEventListener("DOMContentLoaded", initGame);
