@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Glass Line: 기업의 심장</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glass Line</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body class="font-normal">
-  <!-- 시작 화면 오버레이 -->
+  <!-- START SCREEN -->
   <div id="start-screen">
     <div id="start-title">Glass Line: 기업의 심장</div>
-    <div id="start-hint">화면을 클릭하여 시작</div>
+    <div id="start-hint">클릭하여 시작</div>
   </div>
 
-  <!-- 상단 공통 헤더 -->
+  <!-- HEADER -->
   <header id="ui-header">
     <div id="player-status"></div>
     <div id="system-buttons">
@@ -22,115 +23,78 @@
     </div>
   </header>
 
-  <!-- 메인 씬 컨테이너 -->
+  <!-- GAME MAIN -->
   <main id="game-container">
     <div id="scene-image"></div>
     <div id="scene-text"></div>
     <div id="scene-choices"></div>
   </main>
 
-  <!-- 방향형 QTE 오버레이 -->
+  <!-- QTE: DIRECTION -->
   <div id="qte-direction-overlay" class="qte-overlay hidden">
     <div class="qte-modal">
       <div class="qte-text"></div>
-      <div class="qte-timer">
-        <div class="qte-timer-fill"></div>
-      </div>
+      <div class="qte-timer"><div class="qte-timer-fill"></div></div>
       <div id="qte-direction-grid">
-        <div></div>
-        <button data-dir="up" class="dir-btn">↑</button>
-        <div></div>
-        <button data-dir="left" class="dir-btn">←</button>
-        <div></div>
-        <button data-dir="right" class="dir-btn">→</button>
-        <div></div>
-        <button data-dir="down" class="dir-btn">↓</button>
-        <div></div>
+        <div></div><button class="dir-btn" data-dir="up">↑</button><div></div>
+        <button class="dir-btn" data-dir="left">←</button><div></div><button class="dir-btn" data-dir="right">→</button>
+        <div></div><button class="dir-btn" data-dir="down">↓</button><div></div>
       </div>
-      <div id="qte-direction-hint">방향키 또는 버튼을 눌러라</div>
+      <div id="qte-direction-hint">방향을 입력하세요</div>
     </div>
   </div>
 
-  <!-- 연타형 QTE 오버레이 -->
+  <!-- QTE: MASH -->
   <div id="qte-mash-overlay" class="qte-overlay hidden">
     <div class="qte-modal">
       <div class="qte-text"></div>
-      <div class="qte-timer">
-        <div class="qte-timer-fill"></div>
-      </div>
-      <div id="qte-mash-info">
-        <span>목표: <span id="qte-mash-target">0</span>회</span>
-      </div>
+      <div class="qte-timer"><div class="qte-timer-fill"></div></div>
+      <div id="qte-mash-info">목표: <span id="qte-mash-target">0</span></div>
       <button id="qte-mash-button">Z</button>
       <div id="qte-mash-count">0</div>
     </div>
   </div>
 
-  <!-- 설정 오버레이 -->
+  <!-- SETTINGS -->
   <div id="settings-overlay" class="hidden">
     <div id="settings-modal">
       <h2>설정</h2>
-
       <section class="settings-section">
         <h3>게임</h3>
-        <div class="settings-buttons">
-          <button id="btn-setting-save">저장</button>
-          <button id="btn-setting-load">불러오기</button>
-          <button id="btn-setting-restart">재시작</button>
-        </div>
+        <button id="btn-setting-save">저장</button>
+        <button id="btn-setting-load">불러오기</button>
+        <button id="btn-setting-restart">재시작</button>
       </section>
 
       <section class="settings-section">
         <h3>텍스트</h3>
-        <label>텍스트 속도
-          <select id="setting-text-speed">
-            <option value="slow">느림</option>
-            <option value="normal">보통</option>
-            <option value="fast">빠름</option>
-          </select>
-        </label>
-        <label>글자 크기
-          <select id="setting-font-size">
-            <option value="small">작게</option>
-            <option value="normal">보통</option>
-            <option value="large">크게</option>
-          </select>
-        </label>
+        <label>속도 <select id="setting-text-speed"><option value="slow">느림</option><option value="normal">보통</option><option value="fast">빠름</option></select></label>
+        <label>글씨 크기 <select id="setting-font-size"><option value="small">작게</option><option value="normal">보통</option><option value="large">크게</option></select></label>
       </section>
 
       <section class="settings-section">
         <h3>기타</h3>
-        <label><input type="checkbox" id="setting-mute"> 소리 끄기</label>
-        <label>QTE 난이도
-          <select id="setting-qte-difficulty">
-            <option value="easy">쉬움</option>
-            <option value="normal">보통</option>
-            <option value="hard">어려움</option>
-          </select>
-        </label>
+        <label><input type="checkbox" id="setting-mute" /> 소리 끄기</label>
+        <label>QTE 난이도 <select id="setting-qte-difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard">어려움</option></select></label>
       </section>
 
-      <div id="settings-buttons">
-        <button id="btn-settings-close">닫기</button>
-      </div>
+      <button id="btn-settings-close">닫기</button>
     </div>
   </div>
 
-  <!-- 창작 모드: 비밀번호 입력 오버레이 -->
+  <!-- 창작: 비밀번호 -->
   <div id="editor-password-overlay" class="hidden">
     <div class="editor-modal">
       <h2>창작 모드</h2>
-      <p>비밀번호를 입력하세요.</p>
+      <p>비밀번호 입력</p>
       <input id="editor-password-input" type="password" maxlength="8" />
-      <div class="editor-buttons-row">
-        <button id="btn-editor-password-ok">확인</button>
-        <button id="btn-editor-password-cancel">취소</button>
-      </div>
+      <button id="btn-editor-password-ok">확인</button>
+      <button id="btn-editor-password-cancel">취소</button>
       <div id="editor-password-error" class="editor-error"></div>
     </div>
   </div>
 
-  <!-- 창작 모드 에디터 오버레이 -->
+  <!-- 창작: 에디터 -->
   <div id="editor-overlay" class="hidden">
     <div id="editor-modal">
       <div id="editor-header">
@@ -138,113 +102,60 @@
         <button id="btn-editor-close">닫기</button>
       </div>
 
-      <!-- 씬 선택 / 새로 만들기 -->
       <section class="editor-section">
         <h3>씬 선택</h3>
-        <div class="editor-row">
-          <label>씬 목록
-            <select id="editor-scene-select"></select>
-          </label>
-          <button id="btn-editor-new-scene">새 씬</button>
-          <button id="btn-editor-delete-scene">삭제</button>
-        </div>
+        <label>씬 목록 <select id="editor-scene-select"></select></label>
+        <button id="btn-editor-new-scene">새 씬</button>
+        <button id="btn-editor-delete-scene">삭제</button>
       </section>
 
-      <!-- 기본 정보 -->
       <section class="editor-section">
         <h3>기본 정보</h3>
-        <div class="editor-row">
-          <label>씬 ID
-            <input id="editor-scene-id" type="text" />
-          </label>
-          <label>타입
-            <select id="editor-scene-type">
-              <option value="scene">일반 씬</option>
-              <option value="charCreate">캐릭터 생성</option>
-              <option value="qte">QTE 씬</option>
-              <option value="start">시스템 시작</option>
-            </select>
-          </label>
-        </div>
-        <div class="editor-row">
-          <label>이미지 URL
-            <input id="editor-scene-image" type="text" />
-          </label>
-        </div>
-        <label>본문 텍스트
-          <textarea id="editor-scene-text" rows="5"></textarea>
+        <label>씬 ID <input id="editor-scene-id" /></label>
+        <label>타입
+          <select id="editor-scene-type">
+            <option value="scene">scene</option>
+            <option value="charCreate">charCreate</option>
+            <option value="qte">qte</option>
+            <option value="start">start</option>
+          </select>
         </label>
+        <label>이미지 <input id="editor-scene-image" /></label>
+        <label>본문<textarea id="editor-scene-text" rows="5"></textarea></label>
       </section>
 
-      <!-- onEnter 효과 -->
       <section class="editor-section">
-        <h3>씬 진입 효과(onEnter)</h3>
+        <h3>onEnter 효과</h3>
         <div id="editor-onenter-effects"></div>
         <button id="btn-editor-onenter-add-effect">효과 추가</button>
       </section>
 
-      <!-- QTE 전용 설정 -->
       <section class="editor-section" id="editor-qte-section">
         <h3>QTE 설정</h3>
-        <div class="editor-row">
-          <label>QTE 타입
-            <select id="editor-qte-type">
-              <option value="direction">방향 입력</option>
-              <option value="mash">연타</option>
-            </select>
-          </label>
-          <label>기본 제한 시간(ms)
-            <input id="editor-qte-base-time" type="number" value="3000" />
-          </label>
-        </div>
-        <div class="editor-row" id="editor-qte-direction-row">
-          <label>필요 성공 횟수
-            <input id="editor-qte-target-count" type="number" value="1" />
-          </label>
-        </div>
-        <div class="editor-row" id="editor-qte-mash-row">
-          <label>기본 입력 횟수(baseTarget)
-            <input id="editor-qte-base-target" type="number" value="10" />
-          </label>
-          <label>연타 키
-            <input id="editor-qte-key" type="text" value="z" maxlength="1" />
-          </label>
-        </div>
-        <div class="editor-row">
-          <label>성공 시 다음 씬
-            <input id="editor-qte-success-next" type="text" />
-          </label>
-          <label>실패 시 기본 다음 씬
-            <input id="editor-qte-fail-next" type="text" />
-          </label>
-        </div>
-        <div class="editor-subsection">
-          <h4>QTE 성공 효과</h4>
-          <div id="editor-qte-success-effects"></div>
-          <button id="btn-editor-qte-success-add-effect">효과 추가</button>
-        </div>
-        <div class="editor-subsection">
-          <h4>QTE 실패 효과</h4>
-          <div id="editor-qte-fail-effects"></div>
-          <button id="btn-editor-qte-fail-add-effect">효과 추가</button>
-        </div>
+        <label>타입 <select id="editor-qte-type"><option value="direction">direction</option><option value="mash">mash</option></select></label>
+        <label>기본시간 <input id="editor-qte-base-time" type="number" value="3000" /></label>
+        <label>필요횟수 <input id="editor-qte-target-count" type="number" value="1" /></label>
+        <label>연타 키 <input id="editor-qte-key" maxlength="1" value="z" /></label>
+        <label>성공 next <input id="editor-qte-success-next" /></label>
+        <label>실패 next <input id="editor-qte-fail-next" /></label>
+
+        <h4>성공 효과</h4>
+        <div id="editor-qte-success-effects"></div>
+        <button id="btn-editor-qte-success-add-effect">추가</button>
+
+        <h4>실패 효과</h4>
+        <div id="editor-qte-fail-effects"></div>
+        <button id="btn-editor-qte-fail-add-effect">추가</button>
       </section>
 
-      <!-- 선택지 -->
       <section class="editor-section">
         <h3>선택지</h3>
         <div id="editor-choices-container"></div>
         <button id="btn-editor-add-choice">선택지 추가</button>
       </section>
 
-      <section class="editor-section">
-        <h3>저장</h3>
-        <div class="editor-row">
-          <button id="btn-editor-save-scene">이 씬 저장</button>
-          <button id="btn-editor-save-all">전체 씬 로컬 저장</button>
-        </div>
-        <p class="editor-note">씬들은 브라우저 localStorage("glassline_scenes")에 저장됩니다.</p>
-      </section>
+      <button id="btn-editor-save-scene">이 씬 저장</button>
+      <button id="btn-editor-save-all">전체 저장</button>
     </div>
   </div>
 
