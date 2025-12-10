@@ -12,6 +12,7 @@ var state = {
     failures: 0
   },
   flags: {},
+  
   runActive: false,
   isDead: false,
   settings: {
